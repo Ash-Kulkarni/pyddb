@@ -1,5 +1,5 @@
 import aiohttp
-import models
+import pyddb_client.models as models
 
 
 class DDB(models.DDBClient):

@@ -1,6 +1,6 @@
 from typing import Optional, Union
 from pydantic import BaseModel
-import models
+import pyddb_client.models as models
 
 
 class Value(BaseModel):

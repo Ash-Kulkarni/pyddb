@@ -2,7 +2,7 @@ from typing import Optional, Union, List
 import aiohttp
 import asyncio
 
-import models
+import pyddb_client.models as models
 
 
 class Asset(models.DDBClient):

@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from DDBpy_auth import DDBAuth  # https://github.com/arup-group/ddbpy_auth
 import asyncio
 import aiohttp
-import models, utils
+import pyddb_client.models as models
+import pyddb_client.utils as utils
 
 
 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())

@@ -1,7 +1,7 @@
 from typing import Optional, List
 import aiohttp
 import asyncio
-import models
+import pyddb_client.models as models
 
 
 class Project(models.DDBClient):
