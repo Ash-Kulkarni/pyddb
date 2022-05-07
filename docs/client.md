@@ -1,0 +1,106 @@
+# DDB API Client for Python
+
+Full documentation of the pyddb-client-python package version master, which simplifies access to the DDB API using Python.
+
+`pyddb-client-python` is my personal library that I've built to access the [DDB API](link) from your Python applications. It provides useful features like posting and updating assets and parameters dynamically, retrieving asset and parameter types without referencing GUIDs, and convenience functions that improve the experience of using the DDB API.
+
+- [Quick Start](link)
+- [Features](link)
+  - [Automatic parsing and error handling](link)
+  - [Retries with exponential backoff](link)
+  - [Convenience functions and options](link)
+- [Usage concepts](link)
+
+## Installation
+
+Requires Python 3.7+
+
+You can install the client from its [GitHub listing](link).
+
+To do that, simply run `pip install git something or other`.
+
+## Quick Start
+
+### Getting Data
+
+```python
+from pyddb-client-python import DDB
+
+# instantiate client and prompt user for arup credentials
+ddb = DDB()
+
+# retreive a project from ddb
+my_project = await ddb.get_project_by_number(12345678)
+
+# retreive all parameters on the project
+project_parameters = await my_project.get_parameters()
+
+# retreive all assets on the project
+project_assets = await my_project.get_assets()
+
+# retreive all sources on the project
+project_sources = await my_project.get_sources()
+```
+
+Each of these are objects with rich metadata. For example, each parameter has detailed parameter type, parent asset, and revision properties.
+
+### Posting Data
+
+```python
+from pyddb-client-python import DDB
+
+# instantiate client and prompt user for arup credentials
+ddb = DDB()
+
+# post and retreive a project from ddb
+my_project = await ddb.post_project(12345678)
+
+# retreive a parameter type by name
+parameter_type_area = await ddb.get_parameter_type(
+	search="Area"
+)
+
+# post and retreive a list of new parameters at project level
+# revisions are optional and require a value, unit, and source
+# existing parameters will have new revisions posted if there is any change
+[my_parameters] = await my_project.post_parameters(
+	parameters = [
+		NewParameter(
+			parameter_type = parameter_type_area
+			)
+		],
+	)
+
+# retreive all asset types
+asset_types = await ddb.get_asset_types()
+
+asset_type_site = next((a for a in asset_types if a.name == "site"), None)
+
+# post and retreive a list of assets on the project
+[my_site] = await my_project.post_assets(
+	assets = [
+		NewAsset(
+			asset_type = asset_type_site,
+			name = "My New Site"
+			)
+		]
+	)
+```
+
+Each of these post methods will return what they are posting and do not add duplicate data. We need to get the parameter types/asset types/source types/units before posting and do so by name or id. All posts are asynchronous and batched.
+
+## Features
+
+Besides greatly simplifying the process of querying the DDB API, the client provides other useful features.
+
+### Automatically checks existing data
+
+The client checks all existing data before posting to ensure data quality is maintained, posting only the changes, and preventing duplicates.
+
+## Usage concepts
+
+The `DDB` interface follows a generic pattern that is applicable to a wide variety of uses. In the following example I'll show a script that performs a few processes to size a cold water storage tank for a number of residential blocks.
+
+```python
+
+```
