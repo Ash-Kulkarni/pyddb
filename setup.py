@@ -14,7 +14,11 @@ setup(
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
-    install_requires=[],  # add any additional packages that
+    install_requires=[
+        "pydantic",
+        "aiohttp",
+        "asyncio" "git+https://github.com/arup-group/ddb-jupyter.git",
+    ],  # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
     keywords=["python", "first package"],
     classifiers=[
