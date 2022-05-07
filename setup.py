@@ -18,7 +18,9 @@ setup(
         "pydantic",
         "aiohttp",
         "asyncio",
-        "https://github.com/arup-group/ddb-jupyter.git",
+    ],
+    dependency_links=[
+        "https://github.com/Ash-Kulkarni/temp-ddb-python-client/tarball/master"
     ],  # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
     keywords=["python", "first package"],
