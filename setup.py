@@ -18,7 +18,7 @@ setup(
         "pydantic",
         "aiohttp",
         "asyncio",
-        "git+https://github.com/arup-group/ddb-jupyter.git",
+        "https://github.com/arup-group/ddb-jupyter.git",
     ],  # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
     keywords=["python", "first package"],
