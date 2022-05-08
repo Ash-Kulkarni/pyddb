@@ -1,7 +1,5 @@
-from pyddb_client.models import DDB, Parameter
+from pyddb_client import DDB, Parameter, ParameterType
 import pytest
-
-from pyddb_client.models.parameter_type import ParameterType
 
 ddb = DDB()
 

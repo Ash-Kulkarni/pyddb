@@ -20,7 +20,7 @@ setup(
         "asyncio",
     ],
     dependency_links=[
-        "https://github.com/Ash-Kulkarni/temp-ddb-python-client/tarball/master"
+        "https://github.com/arup-group/ddbpy_auth/tarball/master"
     ],  # add any additional packages that
     # needs to be installed along with your package. Eg: 'caer'
     keywords=["python", "first package"],

@@ -1,4 +1,5 @@
 import sys
+from pyddb_client import *
 
 sys.path.append("../")
 from typing import List
