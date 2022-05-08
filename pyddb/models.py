@@ -50,6 +50,23 @@ class DDBClient(BaseModel):
                 ssl=False,
             )
 
+    async def delete_request(self, endpoint: str):
+        async with aiohttp.ClientSession() as session:
+            return await session.delete(
+                f"{self.url}{endpoint}",
+                headers=self.headers,
+                ssl=False,
+            )
+
+    async def patch_request(self, endpoint: str, body: dict):
+        async with aiohttp.ClientSession() as session:
+            return await session.delete(
+                f"{self.url}{endpoint}",
+                json=body,
+                headers=self.headers,
+                ssl=False,
+            )
+
     async def get_sources(self, **kwargs):
 
         """Retreives list of source objects.
