@@ -4,8 +4,13 @@ from pydantic import BaseModel
 import asyncio
 from uuid import uuid4
 from DDBpy_auth import DDBAuth
-from pyddb.utils.generate_payload import generate_payload
+
 import pandas as pd
+
+
+def generate_payload(**kwargs):
+    """Generates a dictionary of provided keywords and values."""
+    return {key: value for (key, value) in kwargs.items()}
 
 
 class DDBClient(BaseModel):
@@ -563,42 +568,6 @@ class DDB(DDBClient):
         """
         return await super().get_request(
             endpoint="tag_types", response_key="tag_types", cls=TagType, **kwargs
-        )
-
-    async def get_asset_type_by_name(self, name: str):
-        return next(
-            (
-                asset_type
-                for asset_type in await self.get_asset_types()
-                if asset_type.name == name
-            ),
-            None,
-        )
-
-    async def get_source_type_by_name(self, name: str):
-        return next(
-            (
-                source_type
-                for source_type in await self.get_source_types()
-                if source_type.name == name
-            ),
-            None,
-        )
-
-    async def get_parameter_type_by_name(self, name: str):
-        return next(
-            (
-                parameter_type
-                for parameter_type in await self.get_parameter_types()
-                if parameter_type.name == name
-            ),
-            None,
-        )
-
-    async def get_unit_by_name(self, name: str):
-        return next(
-            (unit for unit in await self.get_units() if unit.name == name),
-            None,
         )
 
 
