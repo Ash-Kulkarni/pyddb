@@ -1,24 +1,10 @@
-from models.staff import Staff
-from models.source_type import SourceType
-from models.source import Source
-from models.new_source import NewSource
-from models.asset_sub_type import AssetSubType
-from models.asset_type_group import AssetTypeGroup
-from models.asset_type import AssetType
-from models.unit_system import UnitSystem
-from models.unit_type import UnitType
-from models.unit import Unit
-from models.value import Value
-from models.revision import Revision
-from models.new_revision import NewRevision
-from models.tag_type import TagType
-from models.tag import Tag
-from models.parameter_type import ParameterType
-from models.new_parameter import NewParameter
-from models.new_asset import NewAsset
-from models.ddb_client import DDBClient
-from models.asset import Asset
-from models.project import Project
-from models.parameter import Parameter
-from models.item_type import ItemType
-from models.ddb import DDB
+from .models import (
+    DDB,
+    Project,
+    Asset,
+    NewSource,
+    NewParameter,
+    NewRevision,
+    NewAsset,
+    DDBClient,
+)
