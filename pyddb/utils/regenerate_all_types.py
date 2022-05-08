@@ -1,5 +1,5 @@
-from pyddb_client import DDB
-from pyddb_client.utils.write_data import write_data
+from pyddb import DDB
+from pyddb.utils.write_data import write_data
 import asyncio
 
 

@@ -1,4 +1,4 @@
-from pyddb_client.utils.convert_to_lists import convert_to_lists
+from pyddb.utils.convert_to_lists import convert_to_lists
 
 
 def test_that_lists_do_not_change():

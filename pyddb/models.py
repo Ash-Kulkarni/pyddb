@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import asyncio
 from uuid import uuid4
 from DDBpy_auth import DDBAuth
-from pyddb_client.utils.generate_payload import generate_payload
+from pyddb.utils.generate_payload import generate_payload
 
 
 class DDBClient(BaseModel):

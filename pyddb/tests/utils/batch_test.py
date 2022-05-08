@@ -1,4 +1,4 @@
-from pyddb_client.utils.batch import batch
+from pyddb.utils.batch import batch
 
 test_list = [0, 1, 2, 3, 4, 5, 6, 7]
 

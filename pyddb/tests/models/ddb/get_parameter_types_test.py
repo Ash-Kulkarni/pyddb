@@ -1,4 +1,4 @@
-from pyddb_client import DDB, Parameter, ParameterType
+from pyddb import DDB, Parameter, ParameterType
 import pytest
 
 ddb = DDB()
