@@ -1,1 +1,1 @@
-from . import pyddb_client
+from . import pyddb

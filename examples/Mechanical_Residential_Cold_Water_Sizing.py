@@ -2,8 +2,8 @@ import sys
 
 sys.path.append("../")
 from typing import List
-from pyddb_client.models import *
-from pyddb_client.utils import time_function
+from pyddb.models import *
+from pyddb.utils import time_function
 import asyncio
 import time
 
