@@ -5,6 +5,7 @@ import asyncio
 from uuid import uuid4
 from DDBpy_auth import DDBAuth
 from pyddb.utils.generate_payload import generate_payload
+import pandas as pd
 
 
 class DDBClient(BaseModel):
@@ -347,6 +348,49 @@ class DDBClient(BaseModel):
         return await asyncio.gather(
             *[self.post_new_revision(parameter=parameter) for parameter in parameters]
         )
+
+    async def sources_df_wip(self):
+        return pd.DataFrame(
+            [vars(source) for source in await self.get_sources()],
+            columns=["title", "reference", "source_type_name", "id"],
+        )
+
+        b = {
+            "title": "Source Title",
+            "reference": "Source Reference",
+            "source_type_name": "Source Type",
+            "id": "Source ID",
+        }
+        df_simple = df.copy()
+        df_simple.rename(columns=b, inplace=True)
+
+        return df_simple
+
+    async def parameters_df_wip(self):
+        return pd.DataFrame(
+            [vars(parameter) for parameter in await self.get_parameters()],
+            columns=[
+                "parameter_type_name",
+                "revision_values_0_value",
+                "revision_values_0_unit_name",
+                "revision_source_source_type_name",
+                "revision_source_title",
+                "revision_source_reference",
+            ],
+        )
+
+        b = {
+            "parameter_type_name": "Parameter Type",
+            "revision_values_0_value": "Value",
+            "revision_values_0_unit_name": "Unit",
+            "revision_source_source_type_name": "Source Type",
+            "revision_source_title": "Source Title",
+            "revision_source_reference": "Source Reference",
+        }
+        df_simple = df.copy()
+        df_simple.rename(columns=b, inplace=True)
+
+        return df_simple
 
 
 class DDB(DDBClient):
@@ -986,6 +1030,57 @@ class Project(DDBClient):
 
     async def post_assets(self, assets: List["NewAsset"]):
         return await super().post_assets(assets=assets)
+
+    async def project_df_wip(self):
+        return pd.DataFrame(
+            [vars(parameter) for parameter in await self.get_parameters()],
+            columns=[
+                "parents_0_asset_type_name",
+                "parents_0_name",
+                "parents_0_id",
+                "id",
+                "parameter_type_name",
+                "revision_values_0_value",
+                "revision_values_0_unit_name",
+                "revision_source_source_type_name",
+                "revision_source_title",
+                "revision_source_reference",
+            ],
+        )
+
+        b = {
+            "parents_0_asset_type_name": "Asset Type",
+            "parents_0_name": "Asset Name",
+            "parents_0_id": "Asset ID",
+            "id": "Parameter ID",
+            "parameter_type_name": "Parameter Type",
+            "revision_values_0_value": "Value",
+            "revision_values_0_unit_name": "Unit",
+            "revision_source_source_type_name": "Source Type",
+            "revision_source_title": "Source Title",
+            "revision_source_reference": "Source Reference",
+        }
+        df_simple = df.copy()
+        df_simple.rename(columns=b, inplace=True)
+
+        return df_simple
+
+    async def assets_df_wip(self):
+        return pd.DataFrame(
+            [vars(asset) for asset in await self.get_assets()],
+            columns=["asset_type_name", "name", "id", "parent"],
+        )
+
+        b = {
+            "asset_type_name": "Asset Type",
+            "name": "Asset",
+            "id": "Asset ID",
+            "parent": "Parent Asset ID",
+        }
+        df_simple = df.copy()
+        df_simple.rename(columns=b, inplace=True)
+
+        return df_simple
 
 
 class TagType(BaseModel):

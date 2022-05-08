@@ -2,3 +2,4 @@
 .pytest_cache
 examples
 .vscode
+main.py
