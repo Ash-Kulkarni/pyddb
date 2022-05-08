@@ -1,3 +1,2 @@
 from .models import *
-
-import pyddb.utils
+import utils
