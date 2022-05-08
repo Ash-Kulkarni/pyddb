@@ -1,0 +1,160 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<hd:componentLibrary xmlns:hd="http://www.hotdocs.com/schemas/component_library/2009" version="12">
+	<hd:preferences>
+		<hd:preference name="MAX_REPEAT_COUNT">100</hd:preference>
+		<hd:preference name="MAX_STACK_DEPTH">100</hd:preference>
+	</hd:preferences>
+	<hd:components>
+		<hd:text name="Additional requirements for source of materials" />
+		<hd:text name="Additional technical requirements" />
+		<hd:text name="Cement type" />
+		<hd:text name="Chloride class" />
+		<hd:text name="Client name" />
+		<hd:text name="Concrete designation" />
+		<hd:text name="Concrete reference" />
+		<hd:text name="Consistence class" />
+		<hd:text name="Design chemical class" />
+		<hd:text name="Exposure class" />
+		<hd:text name="Identity consistence testing requirements" />
+		<hd:text name="Identity strength testing requirements" />
+		<hd:text name="Method of placing concrete" />
+		<hd:text name="Minimum air content" />
+		<hd:text name="Other properties identity testing requirements" />
+		<hd:text name="Other special requirements" />
+		<hd:text name="Permitted cement types" />
+		<hd:text name="Project name" />
+		<hd:text name="Recycled aggregate content details _ designed concrete" />
+		<hd:text name="Reinforcement requirements" />
+		<hd:text name="Required admixtures quantity and material source" />
+		<hd:text name="Requirement for finishing concrete" />
+		<hd:text name="Requirements for accelerated or retarded set" />
+		<hd:text name="Requirements for proportion of fine aggregate" />
+		<hd:text name="Requirements for tensile splitting strength" />
+		<hd:text name="Slump class" />
+		<hd:text name="Special colour requirements" />
+		<hd:text name="Special requirements for aggregates" />
+		<hd:text name="Special requirements for heat development during hydration" />
+		<hd:text name="Special requirements for resistance to abrasion" />
+		<hd:text name="Special requirements for resistance to water penetration" />
+		<hd:text name="Special requirements for retarded stiffening" />
+		<hd:text name="Special requirements for strength development" />
+		<hd:text name="Special requirements for temperature of fresh concrete" />
+		<hd:text name="Special restrictions on cement types" />
+		<hd:text name="Special temperature requirements for fresh concrete" />
+		<hd:text name="Strength class" />
+		<hd:text name="Target density _ units" />
+		<hd:text name="Types and dosage of fibres" />
+		<hd:text name="material" />
+		<hd:number name="Job number" />
+		<hd:number name="Maximum aggregate size" />
+		<hd:number name="Maximum water-cement ratio" />
+		<hd:number name="Minimum cement content" />
+		<hd:number name="Recycled aggregate content percentage" />
+		<hd:number name="Target density" />
+		<hd:trueFalse name="Designated concrete" />
+		<hd:trueFalse name="Designed concrete" />
+		<hd:trueFalse name="Environmental product declaration requirement" />
+		<hd:trueFalse name="Identity consistence testing required" />
+		<hd:trueFalse name="Identity strength testing required" />
+		<hd:trueFalse name="Identity testing for other properties required" />
+		<hd:trueFalse name="Prescribed concrete" />
+		<hd:trueFalse name="Producer to provide confirmation of compliance with performance requirements" />
+		<hd:trueFalse name="Proprietary concrete" />
+		<hd:trueFalse name="Recycled aggregate content permitted" />
+		<hd:trueFalse name="Standardised prescribed concrete" />
+		<hd:computation name="All identity testing" resultType="trueFalse">
+			<hd:script>Identity testing for other properties required OR Identity strength testing required OR Identity consistence testing required</hd:script>
+		</hd:computation>
+		<hd:computation name="Designated additional info" resultType="trueFalse">
+			<hd:script>Designated concrete AND All identity testing</hd:script>
+		</hd:computation>
+		<hd:computation name="Designated concrete filter" resultType="trueFalse">
+			<hd:script> Designated concrete</hd:script>
+		</hd:computation>
+		<hd:computation name="Designed concrete filter" resultType="trueFalse">
+			<hd:script>Designed concrete</hd:script>
+		</hd:computation>
+		<hd:computation name="Designed extra info RAC" resultType="trueFalse">
+			<hd:script>Designed concrete AND ANSWERED(Recycled aggregate content details _ designed concrete)</hd:script>
+		</hd:computation>
+		<hd:computation name="Designed extra info id consistence" resultType="trueFalse">
+			<hd:script>Designed concrete AND ANSWERED(Identity consistence testing requirements)</hd:script>
+		</hd:computation>
+		<hd:computation name="Designed extra info id other" resultType="trueFalse">
+			<hd:script>Designed concrete AND ANSWERED(Other properties identity testing requirements)</hd:script>
+		</hd:computation>
+		<hd:computation name="Designed extra info id strength" resultType="trueFalse">
+			<hd:script>Designed concrete AND ANSWERED(Identity strength testing requirements)</hd:script>
+		</hd:computation>
+		<hd:computation name="Prescribed concrete filter" resultType="trueFalse">
+			<hd:script>Prescribed concrete</hd:script>
+		</hd:computation>
+		<hd:computation name="Proprietary concrete filter" resultType="trueFalse">
+			<hd:script>Proprietary concrete</hd:script>
+		</hd:computation>
+		<hd:computation name="Standardised prescribed concrete filter" resultType="trueFalse">
+			<hd:script>Standardised prescribed concrete</hd:script>
+		</hd:computation>
+		<hd:computation name="epd">
+			<hd:script>ASK Environmental product declaration requirement</hd:script>
+		</hd:computation>
+		<hd:dialog name="material repeat">
+			<hd:style>
+				<hd:repeated />
+			</hd:style>
+			<hd:contents>
+				<hd:item name="material" />
+				<hd:item name="Chloride class" />
+				<hd:item name="Concrete designation" />
+				<hd:item name="Environmental product declaration requirement" />
+				<hd:item name="Identity testing for other properties required" />
+				<hd:item name="Designed concrete" />
+				<hd:item name="Types and dosage of fibres" />
+				<hd:item name="Strength class" />
+				<hd:item name="Special restrictions on cement types" />
+				<hd:item name="Special colour requirements" />
+				<hd:item name="Slump class" />
+				<hd:item name="Requirements for accelerated or retarded set" />
+				<hd:item name="Recycled aggregate content percentage" />
+				<hd:item name="Designated concrete" />
+				<hd:item name="Design chemical class" />
+				<hd:item name="Concrete reference" />
+				<hd:item name="Maximum water-cement ratio" />
+				<hd:item name="Minimum cement content" />
+				<hd:item name="Permitted cement types" />
+				<hd:item name="Maximum aggregate size" />
+				<hd:item name="Target density" />
+				<hd:item name="Consistence class" />
+				<hd:item name="Method of placing concrete" />
+				<hd:item name="Requirement for finishing concrete" />
+				<hd:item name="Special requirements for aggregates" />
+				<hd:item name="Minimum air content" />
+				<hd:item name="Special temperature requirements for fresh concrete" />
+				<hd:item name="Special requirements for strength development" />
+				<hd:item name="Special requirements for heat development during hydration" />
+				<hd:item name="Special requirements for retarded stiffening" />
+				<hd:item name="Special requirements for resistance to water penetration" />
+				<hd:item name="Special requirements for resistance to abrasion" />
+				<hd:item name="Requirements for tensile splitting strength" />
+				<hd:item name="Additional technical requirements" />
+				<hd:item name="Identity strength testing required" />
+				<hd:item name="Identity consistence testing required" />
+				<hd:item name="Recycled aggregate content permitted" />
+				<hd:item name="Cement type" />
+				<hd:item name="Target density _ units" />
+				<hd:item name="Required admixtures quantity and material source" />
+				<hd:item name="Additional requirements for source of materials" />
+				<hd:item name="Requirements for proportion of fine aggregate" />
+				<hd:item name="Special requirements for temperature of fresh concrete" />
+				<hd:item name="Other special requirements" />
+				<hd:item name="Exposure class" />
+				<hd:item name="Reinforcement requirements" />
+				<hd:item name="Producer to provide confirmation of compliance with performance requirements" />
+				<hd:item name="Identity strength testing requirements" />
+				<hd:item name="Identity consistence testing requirements" />
+				<hd:item name="Other properties identity testing requirements" />
+				<hd:item name="Recycled aggregate content details _ designed concrete" />
+			</hd:contents>
+		</hd:dialog>
+	</hd:components>
+</hd:componentLibrary>

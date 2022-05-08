@@ -1,1 +1,0 @@
-https://github.com/arup-group/ddbpy_auth/tarball/master
