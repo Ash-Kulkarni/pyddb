@@ -1,1 +1,1 @@
-
+from pyddb.admin import *
