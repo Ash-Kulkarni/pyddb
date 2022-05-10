@@ -1,6 +1,6 @@
 # DDB API Client for Python
 
-Full documentation of the pyddb-client-python package, which simplifies access to the DDB API using Python.
+Full documentation of the `pyddb` python package, which simplifies access to the DDB API using Python.
 
 I'll be packaging this correctly in the following weeks.
 
@@ -12,6 +12,7 @@ I'll be packaging this correctly in the following weeks.
 - [Features](#features)
   - [Automatically checks existing data](#automatically-checks-existing-data)
   - [Intuitive wrapper functions](#intuitive-wrapper-functions)
+  - [Download DDB types](#download-ddb-types)
 - [Usage concepts](#usage-concepts)
 
 ## Installation
@@ -27,7 +28,7 @@ pip install git+https://github.com/arup-group/ddbpy_auth.git
 You can install the client from its [GitHub listing](https://github.com/arup-group/pyddb) using:
 
 ```python
-pip install git+https://github.com/arup-group/pyddb.git
+pip install git+https://github.com/Ash-Kulkarni/pyddb
 ```
 
 ## Quick Start
@@ -111,6 +112,10 @@ The client checks all existing data before posting to ensure data quality is mai
 ### Intuitive wrapper functions
 
 The functions for posting parameters understand that if you are posting a new value to an existing parameter, you're really adding a new revision and will access the appropriate endpoint for you.
+
+### Download DDB types
+
+There are functions to download all of our parameter types, asset types, units, and other objects, then load them in by name or uuid. This makes it possible to search for existing data without unnecessary database queries, and we can search by name or uuid.
 
 ## Usage concepts
 
