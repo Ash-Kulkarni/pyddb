@@ -1,6 +1,6 @@
 import pickle
 from typing import List
-from pyddb import *
+from pyddb.models import *
 
 
 def read_data(filename):

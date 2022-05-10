@@ -232,7 +232,7 @@ class DDBClient(BaseModel):
                 p.parameter_type.id,
                 p.parents[0].id,
                 str(p.revision.values[0].value),
-                p.revision.values[0].unit.id,
+                p.revision.values[0].unit.id if p.revision.values[0].unit else None,
                 p.revision.source.id,
             ]
             for p in existing_parameters
@@ -246,7 +246,7 @@ class DDBClient(BaseModel):
                 parameter.parameter_type.id,
                 asset.id,
                 parameter.revision.value,
-                parameter.revision.unit.id,
+                parameter.revision.unit.id if parameter.revision.unit else None,
                 parameter.revision.source.id,
             ] in existing_revisions:
                 continue
