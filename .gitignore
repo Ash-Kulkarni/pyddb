@@ -3,3 +3,5 @@
 examples
 .vscode
 main.py
+data
+chain_assets.py

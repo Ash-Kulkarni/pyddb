@@ -645,6 +645,24 @@ class Asset(DDBClient):
     def __repr__(self) -> str:
         return repr(f"Name: {self.name}, Type: {self.asset_type.name}, ID: {self.id}")
 
+    def __eq__(self, other):
+        if isinstance(other, Asset):
+            if other.id == self.id:
+                return True
+            else:
+                return False
+        elif isinstance(other, NewAsset):
+            if (
+                other.parent == self.parent
+                and other.asset_type == self.asset_type
+                and other.name == self.name
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
+
     async def get_assets(self, **kwargs):
         return await super().get_assets(parent_id=[self.id], **kwargs)
 
@@ -779,6 +797,24 @@ class Source(BaseModel):
     def __repr__(self) -> str:
         return repr(f"Title: {self.title}, reference: {self.reference}, id: {self.id}")
 
+    def __eq__(self, other):
+        if isinstance(other, Source):
+            if other.id == self.id:
+                return True
+            else:
+                return False
+        elif isinstance(other, NewSource):
+            if (
+                other.title == self.title
+                and other.reference == self.reference
+                and other.source_type == self.source_type
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
+
 
 class Value(BaseModel):
     id: Optional[str]
@@ -814,6 +850,24 @@ class Revision(BaseModel):
             f"Value: {self.values}, Created by: {self.created_by.staff_name}, Status: {self.status}, Source: {self.source.title} - {self.source.reference}"
         )
 
+    def __eq__(self, other):
+        if isinstance(other, Revision):
+            if other.id == self.id:
+                return True
+            else:
+                return False
+        elif isinstance(other, NewRevision):
+            if (
+                str(other.value) == str(self.values[0].value)
+                and other.unit == self.values[0].unit
+                and other.source == self.source
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
+
 
 class Parameter(BaseModel):
     id: str
@@ -824,6 +878,23 @@ class Parameter(BaseModel):
     parents: Optional[List[Asset]]
     revision: Optional[Revision]
     deleted_at: Optional[str]
+
+    def __eq__(self, other):
+        if isinstance(other, Parameter):
+            if other.id == self.id:
+                return True
+            else:
+                return False
+        elif isinstance(other, NewParameter):
+            if (
+                other.parameter_type == self.parameter_type
+                and other.revision == self.revision
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
 
 
 class ItemType(BaseModel):
@@ -1075,9 +1146,24 @@ class NewSource(BaseModel):
     title: str
     reference: str
     url: Optional[str]
-    day: Optional[int]
-    month: int = 1
-    year: int = 2001
+    day: Optional[str] = "1"
+    month: Optional[str] = "1"
+    year: Optional[str] = "2001"
+
+    def __eq__(self, other):
+        if isinstance(other, NewSource) or isinstance(other, Source):
+
+            if (
+                other.title == self.title
+                and other.reference == self.reference
+                and other.source_type == self.source_type
+            ):
+
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
 
 
 class NewRevision(BaseModel):
@@ -1088,11 +1174,46 @@ class NewRevision(BaseModel):
     comment: str = "Empty"
     location_in_source: str = "Empty"
 
+    def __eq__(self, other):
+        if isinstance(other, NewRevision):
+            if (
+                other.value == self.value
+                and other.unit == self.unit
+                and other.source == self.source
+            ):
+                return True
+            else:
+                return False
+        elif isinstance(other, Revision):
+            if (
+                str(other.values[0].value) == str(self.value)
+                and other.values[0].unit == self.unit
+                and other.source == self.source
+            ):
+                return True
+            else:
+                return False
+
+        else:
+            raise NotImplementedError
+
 
 class NewParameter(BaseModel):
     id: Optional[str]
     parameter_type: ParameterType
     revision: Optional[NewRevision]
+
+    def __eq__(self, other):
+        if isinstance(other, Parameter) or isinstance(other, NewParameter):
+            if (
+                other.parameter_type == self.parameter_type
+                and other.revision == self.revision
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
 
 
 class NewAsset(BaseModel):
@@ -1100,3 +1221,16 @@ class NewAsset(BaseModel):
     asset_type: AssetType
     name: str
     parent: Optional[Union[Asset, "NewAsset"]]
+
+    def __eq__(self, other):
+        if isinstance(other, Asset) or isinstance(other, NewAsset):
+            if (
+                other.parent == self.parent
+                and other.asset_type == self.asset_type
+                and other.name == self.name
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError

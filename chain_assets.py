@@ -2,7 +2,6 @@ from typing import List
 import asyncio
 from pyddb import Project, Asset, NewAsset, DDB
 
-
 async def main():
     ddb = DDB()
     ddb.set_environment("sandbox")

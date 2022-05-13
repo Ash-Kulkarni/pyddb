@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: pyddb
+Version: 0.0.1
+Summary: DDB API Client
+Home-page: UNKNOWN
+Author: Ash Kulkarni
+Author-email: <ash.kulkarni@arup.com>
+License: UNKNOWN
+Description: Python interface for interacting with the Digital Design Brief REST API.
+Keywords: python,ddb,digital,design,brief,client,api
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: Microsoft :: Windows
