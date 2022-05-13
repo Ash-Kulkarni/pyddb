@@ -773,6 +773,15 @@ class ParameterType(BaseModel):
     def __repr__(self) -> str:
         return repr("Name: " + self.name + ", Data type: " + self.data_type)
 
+    def __eq__(self, other):
+        if isinstance(other, ParameterType):
+            if other.id == self.id:
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
+
 
 class Source(BaseModel):
     id: str
