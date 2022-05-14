@@ -1,11 +1,10 @@
 from typing import Optional, Union, List, Type
 import aiohttp
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import asyncio
-from uuid import uuid4
 from DDBpy_auth import DDBAuth
-
 import pandas as pd
+from uuid import UUID, uuid4
 
 
 def generate_payload(**kwargs):
@@ -185,18 +184,17 @@ class DDBClient(BaseModel):
         assets: List["NewAsset"],
     ):
         body = {"assets": []}
-        print(assets)
+
         for asset in assets:
             asset_body = {
-                "asset_id": asset.id,
+                "asset_id": str(asset.id),
                 "asset_type_id": asset.asset_type.id,
                 "project_id": project.project_id,
                 "name": asset.name,
             }
             if asset.parent:
-                asset_body["parent_id"] = asset.parent.id
+                asset_body["parent_id"] = str(asset.parent.id)
             body["assets"].append(asset_body)
-
         async with aiohttp.ClientSession() as session:
             response = await session.post(
                 f"{self.url}assets",
@@ -710,44 +708,6 @@ class Asset(DDBClient):
 
         return await super().post_sources(sources=sources, reference_id=self.project_id)
 
-    # async def post_assets(
-    #     self,
-    #     assets: List["NewAsset"],
-    # ):
-    #     body = {"assets": []}
-
-    #     for asset in assets:
-    #         body["assets"].append(
-    #             {
-    #                 "asset_type_id": asset.asset_type.id,
-    #                 "project_id": self.project_id,
-    #                 "name": asset.name,
-    #                 "parent_id": self.id,
-    #             }
-    #         )
-
-    #     async with aiohttp.ClientSession() as session:
-    #         response = await session.post(
-    #             f"{self.url}assets",
-    #             json=body,
-    #             headers=self.headers,
-    #             ssl=False,
-    #         )
-
-    #         if response.status == 201:
-    #             result = await response.json()
-    #             response_list = result["assets"]
-    #             return [Asset(**x) for x in response_list]
-    #         if response.status == 400:
-    #             existing_assets = await self.get_assets(
-    #                 asset_type_id=[a.asset_type.id for a in assets],
-    #             )
-    #             return [
-    #                 asset
-    #                 for asset in existing_assets
-    #                 if asset.name in [a.name for a in assets]
-    #             ]
-
 
 class UnitType(BaseModel):
     id: str
@@ -1073,7 +1033,7 @@ class NewRevision(BaseModel):
 
 
 class NewAsset(BaseModel):
-    id: Optional[str]
+    id: UUID = Field(default_factory=uuid4)
     asset_type: AssetType
     name: str
     parent: Optional[Union[Asset, "NewAsset"]]
