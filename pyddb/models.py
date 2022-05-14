@@ -181,15 +181,16 @@ class DDBClient(BaseModel):
 
     async def handle_post_assets(
         self,
+        project: "Project",
         assets: List["NewAsset"],
     ):
         body = {"assets": []}
-
+        print(assets)
         for asset in assets:
             asset_body = {
                 "asset_id": asset.id,
                 "asset_type_id": asset.asset_type.id,
-                "project_id": self.project_id,
+                "project_id": project.project_id,
                 "name": asset.name,
             }
             if asset.parent:
@@ -229,7 +230,6 @@ class DDBClient(BaseModel):
         )
         existing_assets = await project.get_assets()
         new_assets = []
-
         for asset in sorted_new_assets:
 
             new = False
@@ -250,9 +250,11 @@ class DDBClient(BaseModel):
                         parent=asset.parent,
                     )
                 )
-        await self.handle_post_assets(assets=new_assets)
+        await self.handle_post_assets(project=project, assets=new_assets)
 
-    async def post_parameters(self, parameters: List["NewParameter"]):
+    async def post_parameters(
+        self, project: "Project", parameters: List["NewParameter"]
+    ):
         existing_parameters = await DDBClient.get_parameters(
             self,
             parameter_type_id=[p.parameter_type.id for p in parameters],
@@ -307,7 +309,9 @@ class DDBClient(BaseModel):
 
         tasks = []
         if new_parameters:
-            tasks.append(self.post_new_parameters(parameters=new_parameters))
+            tasks.append(
+                self.post_new_parameters(project=project, parameters=new_parameters)
+            )
         if new_revisions:
             tasks.append(self.post_new_revisions(parameters=new_revisions))
         if tasks:
@@ -684,8 +688,9 @@ class Asset(DDBClient):
             else:
                 return False
         elif isinstance(other, NewAsset):
+            other_parent = other.parent.id if other.parent else other.parent
             if (
-                other.parent == self.parent
+                other_parent == self.parent
                 and other.asset_type == self.asset_type
                 and other.name == self.name
             ):
@@ -934,66 +939,6 @@ class Project(DDBClient):
 
         return await super().post_sources(sources=sources, reference_id=self.project_id)
 
-    async def post_parameters(
-        self,
-        parameters: List["NewParameter"],
-    ):
-        existing_parameters = await self.get_parameters(
-            parameter_type_id=[p.parameter_type.id for p in parameters]
-        )
-        existing_parameter_type_ids = [p.parameter_type.id for p in existing_parameters]
-
-        new_parameters = [
-            p
-            for p in parameters
-            if p.parameter_type.id not in existing_parameter_type_ids
-        ]
-        existing_parameter_revisions = [
-            (
-                p.parameter_type.id,
-                p.revision.values[0].value,
-                p.revision.values[0].unit.id if p.revision.values[0].unit else None,
-                p.revision.source.id,
-            )
-            for p in existing_parameters
-            if p.revision
-        ]
-
-        for parameter in existing_parameters:
-            if parameter.parameter_type.id in [p.parameter_type.id for p in parameters]:
-                p = next(
-                    (
-                        p
-                        for p in parameters
-                        if p.parameter_type.id == parameter.parameter_type.id
-                    ),
-                    None,
-                )
-                setattr(p, "id", parameter.id)
-
-        new_revisions = [
-            p
-            for p in parameters
-            if p.revision
-            and p not in new_parameters
-            and (
-                p.parameter_type.id,
-                p.revision.value,
-                p.revision.unit.id if p.revision.unit else None,
-                p.revision.source.id,
-            )
-            not in existing_parameter_revisions
-        ]
-
-        tasks = []
-        if new_parameters:
-            tasks.append(self.post_new_parameters(parameters=new_parameters))
-        if new_revisions:
-            tasks.append(self.post_new_revisions(parameters=new_revisions))
-        if tasks:
-            return await asyncio.gather(*tasks)
-        return None
-
     async def post_new_parameters(self, parameters: List["NewParameter"]):
         return await super().post_new_parameters(project=self, parameters=parameters)
 
@@ -1127,25 +1072,6 @@ class NewRevision(BaseModel):
             raise NotImplementedError
 
 
-class NewParameter(BaseModel):
-    id: Optional[str]
-    parameter_type: ParameterType
-    revision: Optional[NewRevision]
-    parent: Asset
-
-    def __eq__(self, other):
-        if isinstance(other, Parameter) or isinstance(other, NewParameter):
-            if (
-                other.parameter_type == self.parameter_type
-                and other.revision == self.revision
-            ):
-                return True
-            else:
-                return False
-        else:
-            raise NotImplementedError
-
-
 class NewAsset(BaseModel):
     id: Optional[str]
     asset_type: AssetType
@@ -1158,6 +1084,25 @@ class NewAsset(BaseModel):
                 other.parent == self.parent
                 and other.asset_type == self.asset_type
                 and other.name == self.name
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
+
+
+class NewParameter(BaseModel):
+    id: Optional[str]
+    parameter_type: ParameterType
+    revision: Optional[NewRevision]
+    parent: Union[Asset, "NewAsset"]
+
+    def __eq__(self, other):
+        if isinstance(other, Parameter) or isinstance(other, NewParameter):
+            if (
+                other.parameter_type == self.parameter_type
+                and other.revision == self.revision
             ):
                 return True
             else:
