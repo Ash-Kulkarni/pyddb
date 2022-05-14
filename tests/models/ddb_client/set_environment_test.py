@@ -1,4 +1,4 @@
-from pyddb.models import DDB
+from pyddb import DDB
 
 
 def test_environment_changes():
