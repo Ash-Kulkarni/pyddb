@@ -216,13 +216,11 @@ class DDBClient(BaseModel):
                     if asset.name in [a.name for a in assets]
                 ]
 
-    async def post_parameters(
-        self, parameters: List["NewParameter"], assets: List["Asset"]
-    ):
+    async def post_parameters(self, parameters: List["NewParameter"]):
         existing_parameters = await DDBClient.get_parameters(
             self,
             parameter_type_id=[p.parameter_type.id for p in parameters],
-            asset_id=[a.id for a in assets],
+            asset_id=[p.parent.id for p in parameters],
         )
         existing_parameter_type_asset_list = [
             (p.parameter_type.id, p.parents[0].id) for p in existing_parameters
@@ -241,10 +239,10 @@ class DDBClient(BaseModel):
         new_revisions = []
         new_parameters = []
         new_parameter_assets = []
-        for parameter, asset in list(zip(parameters, assets)):
+        for parameter in parameters:
             if [
                 parameter.parameter_type.id,
-                asset.id,
+                parameter.parent.id,
                 parameter.revision.value,
                 parameter.revision.unit.id if parameter.revision.unit else None,
                 parameter.revision.source.id,
@@ -252,7 +250,7 @@ class DDBClient(BaseModel):
                 continue
             elif (
                 parameter.parameter_type.id,
-                asset.id,
+                parameter.parent.id,
             ) in existing_parameter_type_asset_list:
                 setattr(
                     parameter,
@@ -261,7 +259,7 @@ class DDBClient(BaseModel):
                         (
                             p.id
                             for p in existing_parameters
-                            if (parameter.parameter_type.id, asset.id)
+                            if (parameter.parameter_type.id, parameter.parent.id)
                             == (p.parameter_type.id, p.parents[0].id)
                         )
                     ),
@@ -269,7 +267,7 @@ class DDBClient(BaseModel):
                 new_revisions.append(parameter)
             else:
                 new_parameters.append(parameter)
-                new_parameter_assets.append(asset)
+                new_parameter_assets.append(parameter.parent)
 
         tasks = []
         if new_parameters:
@@ -720,8 +718,9 @@ class Asset(DDBClient):
         Returns:
             TODO:
         """
-        assets = [self] * len(parameters)
-        return await super().post_parameters(parameters, assets)
+        for parameter in parameters:
+            parameter.parent = self
+        return await super().post_parameters(parameters)
 
     async def post_new_revision(self, parameter: "NewParameter"):
 
@@ -1202,6 +1201,7 @@ class NewParameter(BaseModel):
     id: Optional[str]
     parameter_type: ParameterType
     revision: Optional[NewRevision]
+    parent: Asset
 
     def __eq__(self, other):
         if isinstance(other, Parameter) or isinstance(other, NewParameter):
