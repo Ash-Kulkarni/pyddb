@@ -1,6 +1,6 @@
 import pickle
 from typing import List
-from pyddb.models import *
+from pyddb import ParameterType, AssetType, SourceType, Unit, Tag
 
 
 def read_data(filename):

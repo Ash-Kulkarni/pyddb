@@ -1,5 +1,4 @@
-from pyddb import DDBClient
-from pyddb.models import ParameterType
+from pyddb import DDBClient, ParameterType
 
 
 async def patch_parameter_type(

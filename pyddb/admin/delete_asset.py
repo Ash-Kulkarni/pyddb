@@ -1,5 +1,4 @@
-from pyddb import DDBClient
-from pyddb.models import Asset
+from pyddb import DDBClient, Asset
 
 
 async def delete_asset(asset: Asset):

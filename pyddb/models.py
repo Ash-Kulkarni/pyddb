@@ -179,20 +179,22 @@ class DDBClient(BaseModel):
             ]
         )
 
-    async def post_assets(
+    async def handle_post_assets(
         self,
         assets: List["NewAsset"],
     ):
         body = {"assets": []}
 
         for asset in assets:
-            body["assets"].append(
-                {
-                    "asset_type_id": asset.asset_type.id,
-                    "project_id": self.project_id,
-                    "name": asset.name,
-                }
-            )
+            asset_body = {
+                "asset_id": asset.id,
+                "asset_type_id": asset.asset_type.id,
+                "project_id": self.project_id,
+                "name": asset.name,
+            }
+            if asset.parent:
+                asset_body["parent_id"] = asset.parent.id
+            body["assets"].append(asset_body)
 
         async with aiohttp.ClientSession() as session:
             response = await session.post(
@@ -215,6 +217,40 @@ class DDBClient(BaseModel):
                     for asset in existing_assets
                     if asset.name in [a.name for a in assets]
                 ]
+
+    async def post_assets(self, project: "Project", assets: List["NewAsset"]):
+        ddb = DDB()
+        asset_types = await ddb.get_asset_types()
+        asset_types_order = [a.name for a in asset_types]
+        sorted_new_assets = sorted(
+            assets,
+            key=lambda x: asset_types_order.index(x.asset_type.name),
+            reverse=True,
+        )
+        existing_assets = await project.get_assets()
+        new_assets = []
+
+        for asset in sorted_new_assets:
+
+            new = False
+            if isinstance(asset.parent, Asset) or asset.parent is None:
+                if asset in existing_assets:
+                    asset = next(a for a in existing_assets if a == asset)
+                else:
+                    new = True
+            else:
+                new = True
+
+            if new:
+                new_assets.append(
+                    NewAsset(
+                        id=asset.id,
+                        asset_type=asset.asset_type,
+                        name=asset.name,
+                        parent=asset.parent,
+                    )
+                )
+        await self.handle_post_assets(assets=new_assets)
 
     async def post_parameters(self, parameters: List["NewParameter"]):
         existing_parameters = await DDBClient.get_parameters(
@@ -671,43 +707,43 @@ class Asset(DDBClient):
 
         return await super().post_sources(sources=sources, reference_id=self.project_id)
 
-    async def post_assets(
-        self,
-        assets: List["NewAsset"],
-    ):
-        body = {"assets": []}
+    # async def post_assets(
+    #     self,
+    #     assets: List["NewAsset"],
+    # ):
+    #     body = {"assets": []}
 
-        for asset in assets:
-            body["assets"].append(
-                {
-                    "asset_type_id": asset.asset_type.id,
-                    "project_id": self.project_id,
-                    "name": asset.name,
-                    "parent_id": self.id,
-                }
-            )
+    #     for asset in assets:
+    #         body["assets"].append(
+    #             {
+    #                 "asset_type_id": asset.asset_type.id,
+    #                 "project_id": self.project_id,
+    #                 "name": asset.name,
+    #                 "parent_id": self.id,
+    #             }
+    #         )
 
-        async with aiohttp.ClientSession() as session:
-            response = await session.post(
-                f"{self.url}assets",
-                json=body,
-                headers=self.headers,
-                ssl=False,
-            )
+    #     async with aiohttp.ClientSession() as session:
+    #         response = await session.post(
+    #             f"{self.url}assets",
+    #             json=body,
+    #             headers=self.headers,
+    #             ssl=False,
+    #         )
 
-            if response.status == 201:
-                result = await response.json()
-                response_list = result["assets"]
-                return [Asset(**x) for x in response_list]
-            if response.status == 400:
-                existing_assets = await self.get_assets(
-                    asset_type_id=[a.asset_type.id for a in assets],
-                )
-                return [
-                    asset
-                    for asset in existing_assets
-                    if asset.name in [a.name for a in assets]
-                ]
+    #         if response.status == 201:
+    #             result = await response.json()
+    #             response_list = result["assets"]
+    #             return [Asset(**x) for x in response_list]
+    #         if response.status == 400:
+    #             existing_assets = await self.get_assets(
+    #                 asset_type_id=[a.asset_type.id for a in assets],
+    #             )
+    #             return [
+    #                 asset
+    #                 for asset in existing_assets
+    #                 if asset.name in [a.name for a in assets]
+    #             ]
 
     async def post_parameters(self, parameters: List["NewParameter"]):
         """Posts a list of NewParameter objects to this asset.
@@ -1068,7 +1104,7 @@ class Project(DDBClient):
         )
 
     async def post_assets(self, assets: List["NewAsset"]):
-        return await super().post_assets(assets=assets)
+        return await super().post_assets(project=self, assets=assets)
 
     async def project_df_wip(self):
         return pd.DataFrame(
@@ -1217,7 +1253,7 @@ class NewParameter(BaseModel):
 
 
 class NewAsset(BaseModel):
-    id = str(uuid4())
+    id: Optional[str]
     asset_type: AssetType
     name: str
     parent: Optional[Union[Asset, "NewAsset"]]
