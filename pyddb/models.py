@@ -307,11 +307,7 @@ class DDBClient(BaseModel):
 
         tasks = []
         if new_parameters:
-            tasks.append(
-                self.post_new_parameters(
-                    parameters=new_parameters, assets=new_parameter_assets
-                )
-            )
+            tasks.append(self.post_new_parameters(parameters=new_parameters))
         if new_revisions:
             tasks.append(self.post_new_revisions(parameters=new_revisions))
         if tasks:
@@ -319,15 +315,17 @@ class DDBClient(BaseModel):
         return None
 
     async def post_new_parameters(
-        self, parameters: List["NewParameter"], assets: List["Asset"]
+        self,
+        project: "Project",
+        parameters: List["NewParameter"],
     ):
         body = {"parameters": []}
-        for parameter, asset in list(zip(parameters, assets)):
+        for parameter in parameters:
             if not parameter.revision:
                 body["parameters"].append(
                     {
                         "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": asset.project_id,
+                        "project_id": project.project_id,
                     }
                 )
             else:
@@ -335,8 +333,8 @@ class DDBClient(BaseModel):
                 body["parameters"].append(
                     {
                         "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": asset.project_id,
-                        "parent_ids": [asset.id],
+                        "project_id": project.project_id,
+                        "parent_ids": [parameter.parent.id],
                         "revision": {
                             "source_id": parameter.revision.source.id,
                             "comment": parameter.revision.comment,
@@ -745,46 +743,6 @@ class Asset(DDBClient):
     #                 if asset.name in [a.name for a in assets]
     #             ]
 
-    async def post_parameters(self, parameters: List["NewParameter"]):
-        """Posts a list of NewParameter objects to this asset.
-
-        Args:
-            parameters (List[NewParameter]): a list of NewParameter objects
-
-        Returns:
-            TODO:
-        """
-        for parameter in parameters:
-            parameter.parent = self
-        return await super().post_parameters(parameters)
-
-    async def post_new_revision(self, parameter: "NewParameter"):
-
-        updated_parameter = {
-            "source_id": parameter.revision.source.id,
-            "values": [
-                {
-                    "value": parameter.revision.value,
-                    "unit_id": parameter.revision.unit.id
-                    if parameter.revision.unit
-                    else None,
-                }
-            ],
-        }
-        async with aiohttp.ClientSession() as session:
-            response = await session.post(
-                f"{self.url}parameters/{parameter.id}/revision",
-                json=updated_parameter,
-                headers=self.headers,
-                ssl=False,
-            )
-            return await response.json()
-
-    async def post_new_revisions(self, parameters: List["NewParameter"]):
-        return await asyncio.gather(
-            *[self.post_new_revision(parameter=parameter) for parameter in parameters]
-        )
-
 
 class UnitType(BaseModel):
     id: str
@@ -1037,71 +995,7 @@ class Project(DDBClient):
         return None
 
     async def post_new_parameters(self, parameters: List["NewParameter"]):
-        body = {"parameters": []}
-        for parameter in parameters:
-            if not parameter.revision:
-                body["parameters"].append(
-                    {
-                        "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": self.project_id,
-                    }
-                )
-            else:
-
-                body["parameters"].append(
-                    {
-                        "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": self.project_id,
-                        "revision": {
-                            "source_id": parameter.revision.source.id,
-                            "comment": parameter.revision.comment,
-                            "location_in_source": parameter.revision.location_in_source,
-                            "values": [
-                                {
-                                    "value": parameter.revision.value,
-                                    "unit_id": parameter.revision.unit.id
-                                    if parameter.revision.unit
-                                    else None,
-                                }
-                            ],
-                        },
-                    }
-                )
-        response = await self.post_request(
-            endpoint="parameters",
-            body=body,
-        )
-        if response.status == 400:
-            res = await response.json()
-            print(res["details"])
-        return response
-
-    async def post_new_revision(self, parameter: "NewParameter"):
-
-        updated_parameter = {
-            "source_id": parameter.revision.source.id,
-            "values": [
-                {
-                    "value": parameter.revision.value,
-                    "unit_id": parameter.revision.unit.id
-                    if parameter.revision.unit
-                    else None,
-                }
-            ],
-        }
-        async with aiohttp.ClientSession() as session:
-            response = await session.post(
-                f"{self.url}parameters/{parameter.id}/revision",
-                json=updated_parameter,
-                headers=self.headers,
-                ssl=False,
-            )
-            return await response.json()
-
-    async def post_new_revisions(self, parameters: List["NewParameter"]):
-        return await asyncio.gather(
-            *[self.post_new_revision(parameter=parameter) for parameter in parameters]
-        )
+        return await super().post_new_parameters(project=self, parameters=parameters)
 
     async def post_assets(self, assets: List["NewAsset"]):
         return await super().post_assets(project=self, assets=assets)
