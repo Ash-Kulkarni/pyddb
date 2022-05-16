@@ -1,6 +1,6 @@
 import pickle
 from typing import List
-from pyddb.models import *
+from pyddb import ParameterType, AssetType, SourceType, Unit, Tag
 
 
 def read_data(filename):
@@ -13,52 +13,52 @@ def read_data(filename):
 
 def get_parameter_types_by_name(names: List[str]) -> List[ParameterType]:
     data = read_data("parameter_types")
-    return [x for x in data if x.name in names]
+    return [next((x for x in data if x.name == name), None) for name in names]
 
 
 def get_parameter_types_by_id(ids: List[str]) -> List[ParameterType]:
     data = read_data("parameter_types")
-    return [x for x in data if x.id in ids]
+    return [next((x for x in data if x.id == id), None) for id in ids]
 
 
 def get_asset_types_by_name(names: List[str]) -> List[AssetType]:
     data = read_data("asset_types")
-    return [x for x in data if x.name in names]
+    return [next((x for x in data if x.name == name), None) for name in names]
 
 
 def get_asset_types_by_id(ids: List[str]) -> List[AssetType]:
     data = read_data("asset_types")
-    return [x for x in data if x.id in ids]
+    return [next((x for x in data if x.id == id), None) for id in ids]
 
 
 def get_source_types_by_name(names: List[str]) -> List[SourceType]:
     data = read_data("source_types")
-    return [x for x in data if x.name in names]
+    return [next((x for x in data if x.name == name), None) for name in names]
 
 
 def get_source_types_by_id(ids: List[str]) -> List[SourceType]:
     data = read_data("source_types")
-    return [x for x in data if x.id in ids]
+    return [next((x for x in data if x.id == id), None) for id in ids]
 
 
 def get_units_by_name(names: List[str]) -> List[Unit]:
     data = read_data("units")
-    return [x for x in data if x.name in names]
+    return [next((x for x in data if x.name == name), None) for name in names]
 
 
 def get_units_by_id(ids: List[str]) -> List[Unit]:
     data = read_data("units")
-    return [x for x in data if x.id in ids]
+    return [next((x for x in data if x.id == id), None) for id in ids]
 
 
 def get_tags_by_name(names: List[str]) -> List[Tag]:
     data = read_data("tags")
-    return [x for x in data if x.name in names]
+    return [next((x for x in data if x.name == name), None) for name in names]
 
 
 def get_tags_by_id(ids: List[str]) -> List[Tag]:
     data = read_data("tags")
-    return [x for x in data if x.id in ids]
+    return [next((x for x in data if x.id == id), None) for id in ids]
 
 
 def get_parameter_type_by_name(name: str) -> ParameterType:

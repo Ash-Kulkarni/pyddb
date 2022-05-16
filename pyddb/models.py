@@ -1,11 +1,10 @@
 from typing import Optional, Union, List, Type
 import aiohttp
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import asyncio
-from uuid import uuid4
 from DDBpy_auth import DDBAuth
-
 import pandas as pd
+from uuid import UUID, uuid4
 
 
 def generate_payload(**kwargs):
@@ -179,21 +178,23 @@ class DDBClient(BaseModel):
             ]
         )
 
-    async def post_assets(
+    async def handle_post_assets(
         self,
+        project: "Project",
         assets: List["NewAsset"],
     ):
         body = {"assets": []}
 
         for asset in assets:
-            body["assets"].append(
-                {
-                    "asset_type_id": asset.asset_type.id,
-                    "project_id": self.project_id,
-                    "name": asset.name,
-                }
-            )
-
+            asset_body = {
+                "asset_id": str(asset.id),
+                "asset_type_id": asset.asset_type.id,
+                "project_id": project.project_id,
+                "name": asset.name,
+            }
+            if asset.parent:
+                asset_body["parent_id"] = str(asset.parent.id)
+            body["assets"].append(asset_body)
         async with aiohttp.ClientSession() as session:
             response = await session.post(
                 f"{self.url}assets",
@@ -216,13 +217,46 @@ class DDBClient(BaseModel):
                     if asset.name in [a.name for a in assets]
                 ]
 
+    async def post_assets(self, project: "Project", assets: List["NewAsset"]):
+        ddb = DDB()
+        asset_types = await ddb.get_asset_types()
+        asset_types_order = [a.name for a in asset_types]
+        sorted_new_assets = sorted(
+            assets,
+            key=lambda x: asset_types_order.index(x.asset_type.name),
+            reverse=True,
+        )
+        existing_assets = await project.get_assets()
+        new_assets = []
+        for asset in sorted_new_assets:
+
+            new = False
+            if isinstance(asset.parent, Asset) or asset.parent is None:
+                if asset in existing_assets:
+                    asset = next(a for a in existing_assets if a == asset)
+                else:
+                    new = True
+            else:
+                new = True
+
+            if new:
+                new_assets.append(
+                    NewAsset(
+                        id=asset.id,
+                        asset_type=asset.asset_type,
+                        name=asset.name,
+                        parent=asset.parent,
+                    )
+                )
+        await self.handle_post_assets(project=project, assets=new_assets)
+
     async def post_parameters(
-        self, parameters: List["NewParameter"], assets: List["Asset"]
+        self, project: "Project", parameters: List["NewParameter"]
     ):
         existing_parameters = await DDBClient.get_parameters(
             self,
             parameter_type_id=[p.parameter_type.id for p in parameters],
-            asset_id=[a.id for a in assets],
+            asset_id=[p.parent.id for p in parameters],
         )
         existing_parameter_type_asset_list = [
             (p.parameter_type.id, p.parents[0].id) for p in existing_parameters
@@ -241,10 +275,10 @@ class DDBClient(BaseModel):
         new_revisions = []
         new_parameters = []
         new_parameter_assets = []
-        for parameter, asset in list(zip(parameters, assets)):
+        for parameter in parameters:
             if [
                 parameter.parameter_type.id,
-                asset.id,
+                parameter.parent.id,
                 parameter.revision.value,
                 parameter.revision.unit.id if parameter.revision.unit else None,
                 parameter.revision.source.id,
@@ -252,7 +286,7 @@ class DDBClient(BaseModel):
                 continue
             elif (
                 parameter.parameter_type.id,
-                asset.id,
+                parameter.parent.id,
             ) in existing_parameter_type_asset_list:
                 setattr(
                     parameter,
@@ -261,7 +295,7 @@ class DDBClient(BaseModel):
                         (
                             p.id
                             for p in existing_parameters
-                            if (parameter.parameter_type.id, asset.id)
+                            if (parameter.parameter_type.id, parameter.parent.id)
                             == (p.parameter_type.id, p.parents[0].id)
                         )
                     ),
@@ -269,14 +303,12 @@ class DDBClient(BaseModel):
                 new_revisions.append(parameter)
             else:
                 new_parameters.append(parameter)
-                new_parameter_assets.append(asset)
+                new_parameter_assets.append(parameter.parent)
 
         tasks = []
         if new_parameters:
             tasks.append(
-                self.post_new_parameters(
-                    parameters=new_parameters, assets=new_parameter_assets
-                )
+                self.post_new_parameters(project=project, parameters=new_parameters)
             )
         if new_revisions:
             tasks.append(self.post_new_revisions(parameters=new_revisions))
@@ -285,15 +317,17 @@ class DDBClient(BaseModel):
         return None
 
     async def post_new_parameters(
-        self, parameters: List["NewParameter"], assets: List["Asset"]
+        self,
+        project: "Project",
+        parameters: List["NewParameter"],
     ):
         body = {"parameters": []}
-        for parameter, asset in list(zip(parameters, assets)):
+        for parameter in parameters:
             if not parameter.revision:
                 body["parameters"].append(
                     {
                         "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": asset.project_id,
+                        "project_id": project.project_id,
                     }
                 )
             else:
@@ -301,8 +335,8 @@ class DDBClient(BaseModel):
                 body["parameters"].append(
                     {
                         "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": asset.project_id,
-                        "parent_ids": [asset.id],
+                        "project_id": project.project_id,
+                        "parent_ids": [parameter.parent.id],
                         "revision": {
                             "source_id": parameter.revision.source.id,
                             "comment": parameter.revision.comment,
@@ -652,8 +686,9 @@ class Asset(DDBClient):
             else:
                 return False
         elif isinstance(other, NewAsset):
+            other_parent = other.parent.id if other.parent else other.parent
             if (
-                other.parent == self.parent
+                other_parent == self.parent
                 and other.asset_type == self.asset_type
                 and other.name == self.name
             ):
@@ -672,83 +707,6 @@ class Asset(DDBClient):
     async def post_sources(self, sources: List["NewSource"]):
 
         return await super().post_sources(sources=sources, reference_id=self.project_id)
-
-    async def post_assets(
-        self,
-        assets: List["NewAsset"],
-    ):
-        body = {"assets": []}
-
-        for asset in assets:
-            body["assets"].append(
-                {
-                    "asset_type_id": asset.asset_type.id,
-                    "project_id": self.project_id,
-                    "name": asset.name,
-                    "parent_id": self.id,
-                }
-            )
-
-        async with aiohttp.ClientSession() as session:
-            response = await session.post(
-                f"{self.url}assets",
-                json=body,
-                headers=self.headers,
-                ssl=False,
-            )
-
-            if response.status == 201:
-                result = await response.json()
-                response_list = result["assets"]
-                return [Asset(**x) for x in response_list]
-            if response.status == 400:
-                existing_assets = await self.get_assets(
-                    asset_type_id=[a.asset_type.id for a in assets],
-                )
-                return [
-                    asset
-                    for asset in existing_assets
-                    if asset.name in [a.name for a in assets]
-                ]
-
-    async def post_parameters(self, parameters: List["NewParameter"]):
-        """Posts a list of NewParameter objects to this asset.
-
-        Args:
-            parameters (List[NewParameter]): a list of NewParameter objects
-
-        Returns:
-            TODO:
-        """
-        assets = [self] * len(parameters)
-        return await super().post_parameters(parameters, assets)
-
-    async def post_new_revision(self, parameter: "NewParameter"):
-
-        updated_parameter = {
-            "source_id": parameter.revision.source.id,
-            "values": [
-                {
-                    "value": parameter.revision.value,
-                    "unit_id": parameter.revision.unit.id
-                    if parameter.revision.unit
-                    else None,
-                }
-            ],
-        }
-        async with aiohttp.ClientSession() as session:
-            response = await session.post(
-                f"{self.url}parameters/{parameter.id}/revision",
-                json=updated_parameter,
-                headers=self.headers,
-                ssl=False,
-            )
-            return await response.json()
-
-    async def post_new_revisions(self, parameters: List["NewParameter"]):
-        return await asyncio.gather(
-            *[self.post_new_revision(parameter=parameter) for parameter in parameters]
-        )
 
 
 class UnitType(BaseModel):
@@ -950,135 +908,11 @@ class Project(DDBClient):
 
         return await super().post_sources(sources=sources, reference_id=self.project_id)
 
-    async def post_parameters(
-        self,
-        parameters: List["NewParameter"],
-    ):
-        existing_parameters = await self.get_parameters(
-            parameter_type_id=[p.parameter_type.id for p in parameters]
-        )
-        existing_parameter_type_ids = [p.parameter_type.id for p in existing_parameters]
-
-        new_parameters = [
-            p
-            for p in parameters
-            if p.parameter_type.id not in existing_parameter_type_ids
-        ]
-        existing_parameter_revisions = [
-            (
-                p.parameter_type.id,
-                p.revision.values[0].value,
-                p.revision.values[0].unit.id if p.revision.values[0].unit else None,
-                p.revision.source.id,
-            )
-            for p in existing_parameters
-            if p.revision
-        ]
-
-        for parameter in existing_parameters:
-            if parameter.parameter_type.id in [p.parameter_type.id for p in parameters]:
-                p = next(
-                    (
-                        p
-                        for p in parameters
-                        if p.parameter_type.id == parameter.parameter_type.id
-                    ),
-                    None,
-                )
-                setattr(p, "id", parameter.id)
-
-        new_revisions = [
-            p
-            for p in parameters
-            if p.revision
-            and p not in new_parameters
-            and (
-                p.parameter_type.id,
-                p.revision.value,
-                p.revision.unit.id if p.revision.unit else None,
-                p.revision.source.id,
-            )
-            not in existing_parameter_revisions
-        ]
-
-        tasks = []
-        if new_parameters:
-            tasks.append(self.post_new_parameters(parameters=new_parameters))
-        if new_revisions:
-            tasks.append(self.post_new_revisions(parameters=new_revisions))
-        if tasks:
-            return await asyncio.gather(*tasks)
-        return None
-
     async def post_new_parameters(self, parameters: List["NewParameter"]):
-        body = {"parameters": []}
-        for parameter in parameters:
-            if not parameter.revision:
-                body["parameters"].append(
-                    {
-                        "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": self.project_id,
-                    }
-                )
-            else:
-
-                body["parameters"].append(
-                    {
-                        "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": self.project_id,
-                        "revision": {
-                            "source_id": parameter.revision.source.id,
-                            "comment": parameter.revision.comment,
-                            "location_in_source": parameter.revision.location_in_source,
-                            "values": [
-                                {
-                                    "value": parameter.revision.value,
-                                    "unit_id": parameter.revision.unit.id
-                                    if parameter.revision.unit
-                                    else None,
-                                }
-                            ],
-                        },
-                    }
-                )
-        response = await self.post_request(
-            endpoint="parameters",
-            body=body,
-        )
-        if response.status == 400:
-            res = await response.json()
-            print(res["details"])
-        return response
-
-    async def post_new_revision(self, parameter: "NewParameter"):
-
-        updated_parameter = {
-            "source_id": parameter.revision.source.id,
-            "values": [
-                {
-                    "value": parameter.revision.value,
-                    "unit_id": parameter.revision.unit.id
-                    if parameter.revision.unit
-                    else None,
-                }
-            ],
-        }
-        async with aiohttp.ClientSession() as session:
-            response = await session.post(
-                f"{self.url}parameters/{parameter.id}/revision",
-                json=updated_parameter,
-                headers=self.headers,
-                ssl=False,
-            )
-            return await response.json()
-
-    async def post_new_revisions(self, parameters: List["NewParameter"]):
-        return await asyncio.gather(
-            *[self.post_new_revision(parameter=parameter) for parameter in parameters]
-        )
+        return await super().post_new_parameters(project=self, parameters=parameters)
 
     async def post_assets(self, assets: List["NewAsset"]):
-        return await super().post_assets(assets=assets)
+        return await super().post_assets(project=self, assets=assets)
 
     async def project_df_wip(self):
         return pd.DataFrame(
@@ -1207,26 +1041,8 @@ class NewRevision(BaseModel):
             raise NotImplementedError
 
 
-class NewParameter(BaseModel):
-    id: Optional[str]
-    parameter_type: ParameterType
-    revision: Optional[NewRevision]
-
-    def __eq__(self, other):
-        if isinstance(other, Parameter) or isinstance(other, NewParameter):
-            if (
-                other.parameter_type == self.parameter_type
-                and other.revision == self.revision
-            ):
-                return True
-            else:
-                return False
-        else:
-            raise NotImplementedError
-
-
 class NewAsset(BaseModel):
-    id = str(uuid4())
+    id: UUID = Field(default_factory=uuid4)
     asset_type: AssetType
     name: str
     parent: Optional[Union[Asset, "NewAsset"]]
@@ -1237,6 +1053,25 @@ class NewAsset(BaseModel):
                 other.parent == self.parent
                 and other.asset_type == self.asset_type
                 and other.name == self.name
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise NotImplementedError
+
+
+class NewParameter(BaseModel):
+    id: Optional[str]
+    parameter_type: ParameterType
+    revision: Optional[NewRevision]
+    parent: Union[Asset, "NewAsset"]
+
+    def __eq__(self, other):
+        if isinstance(other, Parameter) or isinstance(other, NewParameter):
+            if (
+                other.parameter_type == self.parameter_type
+                and other.revision == self.revision
             ):
                 return True
             else:

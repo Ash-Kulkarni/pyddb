@@ -1,6 +1,11 @@
-from webbrowser import get
-from pyddb.models import DDB, NewParameter, NewRevision, Source, NewSource
-from pyddb.utils import get_source_type_by_name, get_parameter_type_by_name
+from pyddb import (
+    DDB,
+    NewParameter,
+    Source,
+    NewSource,
+    get_source_type_by_name,
+    get_parameter_type_by_name,
+)
 import pytest
 
 from pyddb.utils.read_data import get_unit_by_name

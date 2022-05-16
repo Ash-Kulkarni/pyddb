@@ -1,5 +1,4 @@
-from pyddb.models import DDB, Source, NewSource
-from pyddb.utils import get_source_type_by_name
+from pyddb import DDB, Source, NewSource, get_source_type_by_name
 import pytest
 
 

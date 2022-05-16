@@ -1,5 +1,4 @@
-from pyddb import DDBClient
-from pyddb.models import Parameter
+from pyddb import DDBClient, Parameter
 
 
 async def delete_parameter(parameter: Parameter):

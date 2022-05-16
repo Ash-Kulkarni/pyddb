@@ -1,4 +1,4 @@
-from pyddb.models import DDB, Asset
+from pyddb import DDB, Asset
 import pytest
 
 ddb = DDB()

@@ -1,5 +1,4 @@
-from pyddb.models import DDB, NewRevision
-from pyddb.utils import get_unit_by_name
+from pyddb import DDB, NewRevision, get_unit_by_name
 import pytest
 
 

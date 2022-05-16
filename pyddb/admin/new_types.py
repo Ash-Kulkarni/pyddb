@@ -1,6 +1,6 @@
 from typing import Optional, Union
 from pydantic import BaseModel
-from pyddb.models import (
+from pyddb import (
     ParameterType,
     AssetType,
     AssetSubType,

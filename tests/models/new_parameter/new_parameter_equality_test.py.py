@@ -1,11 +1,20 @@
-from pyddb import DDB, Source, NewSource, get_source_type_by_name
+from pyddb import (
+    DDB,
+    Source,
+    NewSource,
+    Parameter,
+    NewParameter,
+    get_source_type_by_name,
+)
 import pytest
 
 
 async def get_test_source():
     ddb = DDB()
-    [source] = await ddb.get_sources(source_id="9eb7af5a-df12-42a6-b308-8d0cb5558e74")
-    return source
+    [parameter] = await ddb.get_parameters(
+        parameter_id="41be6903-662f-429f-a108-92f8f3d91db4"
+    )
+    return parameter
 
 
 @pytest.mark.asyncio

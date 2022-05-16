@@ -1,4 +1,4 @@
-from pyddb.models import DDB, Asset, NewAsset
+from pyddb import DDB, Asset, NewAsset
 from pyddb.utils import get_asset_type_by_name
 import pytest
 
