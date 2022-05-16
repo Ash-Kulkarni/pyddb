@@ -166,6 +166,7 @@ class DDBClient(BaseModel):
                     ssl=False,
                 )
                 result = await response.json()
+
                 response = result["source"]
             return Source(**response)
 
@@ -381,6 +382,9 @@ class DDBClient(BaseModel):
                 headers=self.headers,
                 ssl=False,
             )
+            if response.status == 400:
+                res = await response.json()
+                print(res["details"])
             return await response.json()
 
     async def post_new_revisions(self, parameters: List["NewParameter"]):
