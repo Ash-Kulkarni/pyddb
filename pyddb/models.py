@@ -388,6 +388,27 @@ class DDBClient(BaseModel):
             *[self.post_new_revision(parameter=parameter) for parameter in parameters]
         )
 
+    async def post_tag(self, tag: "Tag"):
+        if isinstance(self, Project):
+            body = {
+                "reference_id": self.project_id,
+                "reference_table": "projects",
+                "reference_url": f"{self.url}projects",
+            }
+        if isinstance(self, Parameter):
+            body = {
+                "reference_id": self.id,
+                "reference_table": "parameters",
+                "reference_url": f"{self.url}parameters",
+            }
+        if isinstance(self, Asset):
+            body = {
+                "reference_id": self.id,
+                "reference_table": "assets",
+                "reference_url": f"{self.url}assets",
+            }
+        await self.post_request(endpoint=f"tags/{tag.id}/links", body=body)
+
     async def sources_df_wip(self):
         return pd.DataFrame(
             [vars(source) for source in await self.get_sources()],

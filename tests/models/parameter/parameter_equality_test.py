@@ -1,14 +1,11 @@
 from pyddb import (
     DDB,
     NewParameter,
-    Source,
-    NewSource,
-    get_source_type_by_name,
+    NewRevision,
     get_parameter_type_by_name,
+    get_unit_by_name,
 )
 import pytest
-
-from pyddb.utils.read_data import get_unit_by_name
 
 
 async def get_test_parameter():
