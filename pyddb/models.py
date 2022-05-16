@@ -7,68 +7,70 @@ import pandas as pd
 from uuid import UUID, uuid4
 
 
+environment = ""
+base_urls = {
+    "prod": "https://ddb.arup.com/api/",
+    "dev": "https://dev.ddb.arup.com/api/",
+    "sandbox": "https://sandbox.ddb.arup.com/api/",
+}
+url = ""
+
+
+def set_environment(environment):
+    global url
+    url = base_urls[environment]
+
+
+headers = {
+    "Authorization": "Bearer " + DDBAuth().acquire_new_access_content(),
+    "version": "0",
+}
+
+
 def generate_payload(**kwargs):
     """Generates a dictionary of provided keywords and values."""
     return {key: value for (key, value) in kwargs.items()}
 
 
 class DDBClient(BaseModel):
-    environment = "sandbox"
-    base_urls = {
-        "prod": "https://ddb.arup.com/api/",
-        "dev": "https://dev.ddb.arup.com/api/",
-        "sandbox": "https://sandbox.ddb.arup.com/api/",
-    }
-    url: str = base_urls[environment]
-    headers = {
-        "Authorization": "Bearer " + DDBAuth().acquire_new_access_content(),
-        "version": "0",
-    }
-
-    def set_environment(self, environment: str):
-        """Change which environment this client is pointed to.
-
-        Args:
-            environment (str): Must be "sandbox", "prod", or "dev"
-        """
-        self.environment = environment
-        self.url = self.base_urls[environment]
-
     async def get_request(self, endpoint: str, response_key: str, cls: Type, **kwargs):
         payload = generate_payload(**kwargs)
         async with aiohttp.ClientSession() as session:
             response = await session.get(
-                f"{self.url}{endpoint}",
+                f"{url}{endpoint}",
                 params=payload,
-                headers=self.headers,
+                headers=headers,
                 ssl=False,
             )
             result = await response.json()
-        return [cls.parse_obj(x) for x in result[response_key]]
+        try:
+            return [cls.parse_obj(x) for x in result[response_key]]
+        except KeyError:
+            return []
 
     async def post_request(self, endpoint: str, body: dict):
         async with aiohttp.ClientSession() as session:
             return await session.post(
-                f"{self.url}{endpoint}",
+                f"{url}{endpoint}",
                 json=body,
-                headers=self.headers,
+                headers=headers,
                 ssl=False,
             )
 
     async def delete_request(self, endpoint: str):
         async with aiohttp.ClientSession() as session:
             return await session.delete(
-                f"{self.url}{endpoint}",
-                headers=self.headers,
+                f"{url}{endpoint}",
+                headers=headers,
                 ssl=False,
             )
 
     async def patch_request(self, endpoint: str, body: dict):
         async with aiohttp.ClientSession() as session:
             return await session.delete(
-                f"{self.url}{endpoint}",
+                f"{url}{endpoint}",
                 json=body,
-                headers=self.headers,
+                headers=headers,
                 ssl=False,
             )
 
@@ -158,11 +160,12 @@ class DDBClient(BaseModel):
                 "reference_table": "projects",
                 "reference_url": "https://ddb.arup.com/project",
             }
+
             async with aiohttp.ClientSession() as session:
                 response = await session.post(
-                    f"{self.url}sources",
+                    f"{url}sources",
                     json=body,
-                    headers=self.headers,
+                    headers=headers,
                     ssl=False,
                 )
                 result = await response.json()
@@ -198,9 +201,9 @@ class DDBClient(BaseModel):
             body["assets"].append(asset_body)
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                f"{self.url}assets",
+                f"{url}assets",
                 json=body,
-                headers=self.headers,
+                headers=headers,
                 ssl=False,
             )
 
@@ -254,18 +257,21 @@ class DDBClient(BaseModel):
     async def post_parameters(
         self, project: "Project", parameters: List["NewParameter"]
     ):
-        existing_parameters = await DDBClient.get_parameters(
-            self,
+        existing_parameters = await self.get_parameters(
             parameter_type_id=[p.parameter_type.id for p in parameters],
-            asset_id=[p.parent.id for p in parameters],
+            # asset_id=[str(p.parent.id) for p in parameters if p.parent],
         )
+
         existing_parameter_type_asset_list = [
-            (p.parameter_type.id, p.parents[0].id) for p in existing_parameters
+            (p.parameter_type.id, p.parents[0].id)
+            if p.parents
+            else (p.parameter_type.id, [])
+            for p in existing_parameters
         ]
         existing_revisions = [
             [
                 p.parameter_type.id,
-                p.parents[0].id,
+                p.parents[0].id if p.parents else [],
                 str(p.revision.values[0].value),
                 p.revision.values[0].unit.id if p.revision.values[0].unit else None,
                 p.revision.source.id,
@@ -275,45 +281,72 @@ class DDBClient(BaseModel):
 
         new_revisions = []
         new_parameters = []
-        new_parameter_assets = []
+        # new_parameter_assets = []
         for parameter in parameters:
+
             if [
                 parameter.parameter_type.id,
-                parameter.parent.id,
+                parameter.parent.id if parameter.parent else [],
                 parameter.revision.value,
                 parameter.revision.unit.id if parameter.revision.unit else None,
                 parameter.revision.source.id,
             ] in existing_revisions:
                 continue
+
             elif (
                 parameter.parameter_type.id,
-                parameter.parent.id,
+                parameter.parent.id if parameter.parent else [],
             ) in existing_parameter_type_asset_list:
-                setattr(
-                    parameter,
-                    "id",
-                    next(
-                        (
-                            p.id
-                            for p in existing_parameters
-                            if (parameter.parameter_type.id, parameter.parent.id)
-                            == (p.parameter_type.id, p.parents[0].id)
-                        )
-                    ),
-                )
+
+                if parameter.parent:
+
+                    setattr(
+                        parameter,
+                        "id",
+                        next(
+                            (
+                                p.id
+                                for p in existing_parameters
+                                if (
+                                    parameter.parameter_type.id,
+                                    parameter.parent.id,
+                                )
+                                == (p.parameter_type.id, p.parents[0].id)
+                            )
+                        ),
+                    )
+                else:
+
+                    setattr(
+                        parameter,
+                        "id",
+                        next(
+                            (
+                                p.id
+                                for p in existing_parameters
+                                if (parameter.parameter_type.id, [])
+                                == (p.parameter_type.id, p.parents)
+                            )
+                        ),
+                    )
                 new_revisions.append(parameter)
             else:
+
                 new_parameters.append(parameter)
-                new_parameter_assets.append(parameter.parent)
+
+        # new_parameter_assets.append(parameter.parent)
 
         tasks = []
         if new_parameters:
+
             tasks.append(
                 self.post_new_parameters(project=project, parameters=new_parameters)
             )
         if new_revisions:
+
             tasks.append(self.post_new_revisions(parameters=new_revisions))
         if tasks:
+
             return await asyncio.gather(*tasks)
         return None
 
@@ -323,6 +356,7 @@ class DDBClient(BaseModel):
         parameters: List["NewParameter"],
     ):
         body = {"parameters": []}
+
         for parameter in parameters:
             if not parameter.revision:
                 body["parameters"].append(
@@ -333,26 +367,27 @@ class DDBClient(BaseModel):
                 )
             else:
 
-                body["parameters"].append(
-                    {
-                        "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": project.project_id,
-                        "parent_ids": [parameter.parent.id],
-                        "revision": {
-                            "source_id": parameter.revision.source.id,
-                            "comment": parameter.revision.comment,
-                            "location_in_source": parameter.revision.location_in_source,
-                            "values": [
-                                {
-                                    "value": parameter.revision.value,
-                                    "unit_id": parameter.revision.unit.id
-                                    if parameter.revision.unit
-                                    else None,
-                                }
-                            ],
-                        },
-                    }
-                )
+                parameter_body = {
+                    "parameter_type_id": parameter.parameter_type.id,
+                    "project_id": project.project_id,
+                    "revision": {
+                        "source_id": parameter.revision.source.id,
+                        "comment": parameter.revision.comment,
+                        "location_in_source": parameter.revision.location_in_source,
+                        "values": [
+                            {
+                                "value": parameter.revision.value,
+                                "unit_id": parameter.revision.unit.id
+                                if parameter.revision.unit
+                                else None,
+                            }
+                        ],
+                    },
+                }
+            if parameter.parent:
+                parameter_body["parent_ids"] = parameter.parent.id
+            body["parameters"].append(parameter_body)
+
         response = await self.post_request(
             endpoint="parameters",
             body=body,
@@ -377,9 +412,9 @@ class DDBClient(BaseModel):
         }
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                f"{self.url}parameters/{parameter.id}/revision",
+                f"{url}parameters/{parameter.id}/revision",
                 json=updated_parameter,
-                headers=self.headers,
+                headers=headers,
                 ssl=False,
             )
             if response.status == 400:
@@ -397,19 +432,19 @@ class DDBClient(BaseModel):
             body = {
                 "reference_id": self.project_id,
                 "reference_table": "projects",
-                "reference_url": f"{self.url}projects",
+                "reference_url": f"{url}projects",
             }
         if isinstance(self, Parameter):
             body = {
                 "reference_id": self.id,
                 "reference_table": "parameters",
-                "reference_url": f"{self.url}parameters",
+                "reference_url": f"{url}parameters",
             }
         if isinstance(self, Asset):
             body = {
                 "reference_id": self.id,
                 "reference_table": "assets",
-                "reference_url": f"{self.url}assets",
+                "reference_url": f"{url}assets",
             }
         await self.post_request(endpoint=f"tags/{tag.id}/links", body=body)
 
@@ -472,9 +507,9 @@ class DDB(DDBClient):
         body = {"number": str(project_number), "confidential": confidential}
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                f"{self.url}projects",
+                f"{url}projects",
                 json=body,
-                headers=self.headers,
+                headers=headers,
                 ssl=False,
             )
             if response.status == 409:
@@ -1090,7 +1125,7 @@ class NewParameter(BaseModel):
     id: Optional[str]
     parameter_type: ParameterType
     revision: Optional[NewRevision]
-    parent: Union[Asset, "NewAsset"]
+    parent: Optional[Union[Asset, "NewAsset"]]
 
     def __eq__(self, other):
         if isinstance(other, Parameter) or isinstance(other, NewParameter):
