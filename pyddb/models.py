@@ -278,7 +278,7 @@ class DDBClient(BaseModel):
                 else None
                 if not p.revision.values[0].unit
                 else p.revision.values[0].unit.id,
-                p.revision.source.id,
+                None if p.revision is None else p.revision.source.id,
             ]
             for p in existing_parameters
         ]
