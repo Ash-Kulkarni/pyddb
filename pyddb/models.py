@@ -272,7 +272,7 @@ class DDBClient(BaseModel):
             [
                 p.parameter_type.id,
                 p.parents[0].id if p.parents else [],
-                str(p.revision.values[0].value),
+                str(p.revision.values[0].value) if p.revision else None,
                 p.revision.values[0].unit.id if p.revision.values[0].unit else None,
                 p.revision.source.id,
             ]
