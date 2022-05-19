@@ -191,7 +191,7 @@ class DDBClient(BaseModel):
 
         for asset in assets:
             asset_body = {
-                "asset_id": asset.id,
+                "asset_id": str(asset.id),
                 "asset_type_id": asset.asset_type.id,
                 "project_id": project.project_id,
                 "name": asset.name,
@@ -356,7 +356,7 @@ class DDBClient(BaseModel):
                     },
                 }
             if parameter.parent:
-                parameter_body["parent_ids"] = parameter.parent.id
+                parameter_body["parent_ids"] = str(parameter.parent.id)
             body["parameters"].append(parameter_body)
 
         response = await self.post_request(
