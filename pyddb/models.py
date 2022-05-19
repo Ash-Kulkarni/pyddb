@@ -197,7 +197,7 @@ class DDBClient(BaseModel):
                 "name": asset.name,
             }
             if asset.parent:
-                asset_body["parent_id"] = asset.parent.id
+                asset_body["parent_id"] = str(asset.parent.id)
             body["assets"].append(asset_body)
         async with aiohttp.ClientSession() as session:
             response = await session.post(
