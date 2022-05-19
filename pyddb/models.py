@@ -249,7 +249,7 @@ class DDBClient(BaseModel):
             if new:
                 new_assets.append(
                     NewAsset(
-                        id=asset.id,
+                        id=str(asset.id),
                         asset_type=asset.asset_type,
                         name=asset.name,
                         parent=asset.parent,
