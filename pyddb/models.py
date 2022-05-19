@@ -191,13 +191,13 @@ class DDBClient(BaseModel):
 
         for asset in assets:
             asset_body = {
-                "asset_id": str(asset.id),
+                "asset_id": asset.id,
                 "asset_type_id": asset.asset_type.id,
                 "project_id": project.project_id,
                 "name": asset.name,
             }
             if asset.parent:
-                asset_body["parent_id"] = str(asset.parent.id)
+                asset_body["parent_id"] = asset.parent.id
             body["assets"].append(asset_body)
         async with aiohttp.ClientSession() as session:
             response = await session.post(
@@ -223,6 +223,8 @@ class DDBClient(BaseModel):
 
     async def post_assets(self, project: "Project", assets: List["NewAsset"]):
         ddb = DDB()
+
+        # sort assets into hierarchy order
         asset_types = await ddb.get_asset_types()
         asset_types_order = [a.name for a in asset_types]
         sorted_new_assets = sorted(
@@ -230,6 +232,7 @@ class DDBClient(BaseModel):
             key=lambda x: asset_types_order.index(x.asset_type.name),
             reverse=True,
         )
+
         existing_assets = await project.get_assets()
         new_assets = []
         for asset in sorted_new_assets:
@@ -257,102 +260,66 @@ class DDBClient(BaseModel):
     async def post_parameters(
         self, project: "Project", parameters: List["NewParameter"]
     ):
-        existing_parameters = await self.get_parameters(
-            parameter_type_id=[p.parameter_type.id for p in parameters],
-            # asset_id=[str(p.parent.id) for p in parameters if p.parent],
-        )
 
-        existing_parameter_type_asset_list = [
-            (p.parameter_type.id, p.parents[0].id)
-            if p.parents
-            else (p.parameter_type.id, [])
-            for p in existing_parameters
+        project_parameters = await project.get_parameters(
+            page_limit=99999,
+            parameter_type_id=[p.parameter_type.id for p in parameters],
+        )
+        existing_parameters = [
+            (p.parameter_type.id, p.parents[0].id if p.parents else None)
+            for p in project_parameters
         ]
         existing_revisions = [
-            [
-                p.parameter_type.id,
-                p.parents[0].id if p.parents else [],
-                str(p.revision.values[0].value) if p.revision else None,
-                None
-                if p.revision is None
-                else None
-                if not p.revision.values[0].unit
-                else p.revision.values[0].unit.id,
-                None if p.revision is None else p.revision.source.id,
-            ]
-            for p in existing_parameters
+            (p.parameter_type.id, p.parents[0].id if p.parents else None, p.revision)
+            for p in project_parameters
         ]
-
-        new_revisions = []
         new_parameters = []
-        # new_parameter_assets = []
+        new_revisions = []
         for parameter in parameters:
-
-            if [
+            if (
                 parameter.parameter_type.id,
-                parameter.parent.id if parameter.parent else [],
-                parameter.revision.value,
-                parameter.revision.unit.id if parameter.revision.unit else None,
-                parameter.revision.source.id,
-            ] in existing_revisions:
-                continue
-
-            elif (
-                parameter.parameter_type.id,
-                parameter.parent.id if parameter.parent else [],
-            ) in existing_parameter_type_asset_list:
-
-                if parameter.parent:
-
-                    setattr(
-                        parameter,
-                        "id",
-                        next(
-                            (
-                                p.id
-                                for p in existing_parameters
-                                if (
-                                    parameter.parameter_type.id,
-                                    parameter.parent.id,
-                                )
-                                == (p.parameter_type.id, p.parents[0].id)
-                            )
-                        ),
-                    )
+                parameter.parent.id if parameter.parent else None,
+            ) in existing_parameters:
+                if (
+                    parameter.parameter_type.id,
+                    parameter.parent.id if parameter.parent else None,
+                    parameter.revision,
+                ) in existing_revisions:
+                    continue
                 else:
-
-                    setattr(
-                        parameter,
-                        "id",
-                        next(
-                            (
+                    if parameter.parent:
+                        setattr(
+                            parameter,
+                            "id",
+                            next(
                                 p.id
-                                for p in existing_parameters
-                                if (parameter.parameter_type.id, [])
-                                == (p.parameter_type.id, p.parents)
-                            )
-                        ),
-                    )
-                new_revisions.append(parameter)
+                                for p in project_parameters
+                                if p.parameter_type.id == parameter.parameter_type.id
+                                and p.parents[0].id == parameter.parent.id
+                            ),
+                        )
+
+                    else:
+                        setattr(
+                            parameter,
+                            "id",
+                            next(
+                                p.id
+                                for p in project_parameters
+                                if p.parameter_type.id == parameter.parameter_type.id
+                                and not p.parents
+                            ),
+                        )
+
+                    new_revisions.append(parameter)
             else:
 
                 new_parameters.append(parameter)
 
-        # new_parameter_assets.append(parameter.parent)
-
-        tasks = []
-        if new_parameters:
-
-            tasks.append(
-                self.post_new_parameters(project=project, parameters=new_parameters)
-            )
-        if new_revisions:
-
-            tasks.append(self.post_new_revisions(parameters=new_revisions))
-        if tasks:
-
-            return await asyncio.gather(*tasks)
-        return None
+        await asyncio.gather(
+            self.post_new_parameters(project=project, parameters=new_parameters),
+            self.post_new_revisions(parameters=new_revisions),
+        )
 
     async def post_new_parameters(
         self,
@@ -398,7 +365,7 @@ class DDBClient(BaseModel):
         )
         if response.status == 400:
             res = await response.json()
-            print(res["details"])
+
         return response
 
     async def post_new_revision(self, parameter: "NewParameter"):
@@ -414,6 +381,7 @@ class DDBClient(BaseModel):
                 }
             ],
         }
+
         async with aiohttp.ClientSession() as session:
             response = await session.post(
                 f"{url}parameters/{parameter.id}/revision",
@@ -424,6 +392,7 @@ class DDBClient(BaseModel):
             if response.status == 400:
                 res = await response.json()
                 print(res["details"])
+
             return await response.json()
 
     async def post_new_revisions(self, parameters: List["NewParameter"]):
@@ -849,7 +818,7 @@ class Source(BaseModel):
 
 class Value(BaseModel):
     id: Optional[str]
-    value: Union[float, str, bool, None]
+    value: Union[int, bool, str, float, None]
     unit: Optional[Unit]
 
 
