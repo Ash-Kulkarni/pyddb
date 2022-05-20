@@ -28,7 +28,7 @@ pip install git+https://github.com/arup-group/ddbpy_auth.git
 You can install the client from its [GitHub listing](https://github.com/arup-group/pyddb) using:
 
 ```python
-pip install git+https://github.com/Ash-Kulkarni/pyddb
+pip install git+https://github.com/Ash-Kulkarni/pyddb.git
 ```
 
 ## Quick Start

@@ -1,30 +1,21 @@
-from typing import Optional, Union, List, Type
-import aiohttp
-from pydantic import BaseModel, Field
 import asyncio
-from DDBpy_auth import DDBAuth
-import pandas as pd
+from enum import Enum
+from typing import List, Optional, Type, Union
 from uuid import UUID, uuid4
 
-
-environment = ""
-base_urls = {
-    "prod": "https://ddb.arup.com/api/",
-    "dev": "https://dev.ddb.arup.com/api/",
-    "sandbox": "https://sandbox.ddb.arup.com/api/",
-}
-url = ""
+import aiohttp
+import pandas as pd
+from DDBpy_auth import DDBAuth
+from pydantic import BaseModel, Field
 
 
-def set_environment(environment):
-    global url
-    url = base_urls[environment]
+class BaseURL(str, Enum):
+    """ "Base URLs corresponding to DDB environments. Using an Enum instead
+    of a dictionary to help with auto-completion and avoid magic strings."""
 
-
-headers = {
-    "Authorization": "Bearer " + DDBAuth().acquire_new_access_content(),
-    "version": "0",
-}
+    prod = "https://ddb.arup.com/api/"
+    dev = "https://dev.ddb.arup.com/api/"
+    sandbox = "https://sandbox.ddb.arup.com/api/"
 
 
 def generate_payload(**kwargs):
@@ -32,14 +23,20 @@ def generate_payload(**kwargs):
     return {key: value for (key, value) in kwargs.items()}
 
 
-class DDBClient(BaseModel):
+class DDB(BaseModel):
+    url: Optional[str]
+    headers = {
+        "Authorization": "Bearer " + DDBAuth().acquire_new_access_content(),
+        "version": "0",
+    }
+
     async def get_request(self, endpoint: str, response_key: str, cls: Type, **kwargs):
         payload = generate_payload(**kwargs)
         async with aiohttp.ClientSession() as session:
             response = await session.get(
-                f"{url}{endpoint}",
+                f"{self.url}{endpoint}",
                 params=payload,
-                headers=headers,
+                headers=self.headers,
                 ssl=False,
             )
             result = await response.json()
@@ -51,26 +48,26 @@ class DDBClient(BaseModel):
     async def post_request(self, endpoint: str, body: dict):
         async with aiohttp.ClientSession() as session:
             return await session.post(
-                f"{url}{endpoint}",
+                f"{self.url}{endpoint}",
                 json=body,
-                headers=headers,
+                headers=self.headers,
                 ssl=False,
             )
 
     async def delete_request(self, endpoint: str):
         async with aiohttp.ClientSession() as session:
             return await session.delete(
-                f"{url}{endpoint}",
-                headers=headers,
+                f"{self.url}{endpoint}",
+                headers=self.headers,
                 ssl=False,
             )
 
     async def patch_request(self, endpoint: str, body: dict):
         async with aiohttp.ClientSession() as session:
             return await session.delete(
-                f"{url}{endpoint}",
+                f"{self.url}{endpoint}",
                 json=body,
-                headers=headers,
+                headers=self.headers,
                 ssl=False,
             )
 
@@ -163,9 +160,9 @@ class DDBClient(BaseModel):
 
             async with aiohttp.ClientSession() as session:
                 response = await session.post(
-                    f"{url}sources",
+                    f"{self.url}sources",
                     json=body,
-                    headers=headers,
+                    headers=self.headers,
                     ssl=False,
                 )
                 result = await response.json()
@@ -201,9 +198,9 @@ class DDBClient(BaseModel):
             body["assets"].append(asset_body)
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                f"{url}assets",
+                f"{self.url}assets",
                 json=body,
-                headers=headers,
+                headers=self.headers,
                 ssl=False,
             )
 
@@ -384,9 +381,9 @@ class DDBClient(BaseModel):
 
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                f"{url}parameters/{parameter.id}/revision",
+                f"{self.url}parameters/{parameter.id}/revision",
                 json=updated_parameter,
-                headers=headers,
+                headers=self.headers,
                 ssl=False,
             )
             if response.status == 400:
@@ -405,74 +402,29 @@ class DDBClient(BaseModel):
             body = {
                 "reference_id": self.project_id,
                 "reference_table": "projects",
-                "reference_url": f"{url}projects",
+                "reference_url": f"{self.url}projects",
             }
         if isinstance(self, Parameter):
             body = {
                 "reference_id": self.id,
                 "reference_table": "parameters",
-                "reference_url": f"{url}parameters",
+                "reference_url": f"{self.url}parameters",
             }
         if isinstance(self, Asset):
             body = {
                 "reference_id": self.id,
                 "reference_table": "assets",
-                "reference_url": f"{url}assets",
+                "reference_url": f"{self.url}assets",
             }
         await self.post_request(endpoint=f"tags/{tag.id}/links", body=body)
 
-    async def sources_df_wip(self):
-        return pd.DataFrame(
-            [vars(source) for source in await self.get_sources()],
-            columns=["title", "reference", "source_type_name", "id"],
-        )
-
-        b = {
-            "title": "Source Title",
-            "reference": "Source Reference",
-            "source_type_name": "Source Type",
-            "id": "Source ID",
-        }
-        df_simple = df.copy()
-        df_simple.rename(columns=b, inplace=True)
-
-        return df_simple
-
-    async def parameters_df_wip(self):
-        return pd.DataFrame(
-            [vars(parameter) for parameter in await self.get_parameters()],
-            columns=[
-                "parameter_type_name",
-                "revision_values_0_value",
-                "revision_values_0_unit_name",
-                "revision_source_source_type_name",
-                "revision_source_title",
-                "revision_source_reference",
-            ],
-        )
-
-        b = {
-            "parameter_type_name": "Parameter Type",
-            "revision_values_0_value": "Value",
-            "revision_values_0_unit_name": "Unit",
-            "revision_source_source_type_name": "Source Type",
-            "revision_source_title": "Source Title",
-            "revision_source_reference": "Source Reference",
-        }
-        df_simple = df.copy()
-        df_simple.rename(columns=b, inplace=True)
-
-        return df_simple
-
-
-class DDB(DDBClient):
     async def get_projects(self, **kwargs):
         """Returns a list of project objects.
 
         Returns:
             List of project dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="projects", response_key="projects", cls=Project, **kwargs
         )
 
@@ -480,9 +432,9 @@ class DDB(DDBClient):
         body = {"number": str(project_number), "confidential": confidential}
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                f"{url}projects",
+                f"{self.url}projects",
                 json=body,
-                headers=headers,
+                headers=self.headers,
                 ssl=False,
             )
             if response.status == 409:
@@ -494,7 +446,7 @@ class DDB(DDBClient):
 
     async def get_source_types(self, **kwargs):
         """Retreives list of source types objects."""
-        return await super().get_request(
+        return await self.get_request(
             endpoint="source_types",
             response_key="source_types",
             cls=SourceType,
@@ -514,7 +466,7 @@ class DDB(DDBClient):
         Returns:
             List of parameter type dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="parameter_types",
             response_key="parameter_types",
             cls=ParameterType,
@@ -534,7 +486,7 @@ class DDB(DDBClient):
         Returns:
             A list of asset type dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="asset_types", response_key="asset_types", cls=AssetType, **kwargs
         )
 
@@ -547,7 +499,7 @@ class DDB(DDBClient):
         Returns:
             A list of asset type group dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="asset_type_groups",
             response_key="asset_type_groups",
             cls=AssetTypeGroup,
@@ -567,7 +519,7 @@ class DDB(DDBClient):
         Returns:
             List of item type dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="item_types",
             response_key="item_types",
             cls=ItemType,
@@ -585,7 +537,7 @@ class DDB(DDBClient):
         Returns:
             List of unit dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="units", response_key="units", cls=Unit, **kwargs
         )
 
@@ -595,7 +547,7 @@ class DDB(DDBClient):
         Returns:
             List of unit type dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="unit_types", response_key="unit_types", cls=UnitType, **kwargs
         )
 
@@ -605,7 +557,7 @@ class DDB(DDBClient):
         Returns:
             List of item type dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="unit_systems",
             response_key="unit_systems",
             cls=UnitSystem,
@@ -623,7 +575,7 @@ class DDB(DDBClient):
         Returns:
             List of tag type dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="tags", response_key="tags", cls=Tag, **kwargs
         )
 
@@ -633,7 +585,7 @@ class DDB(DDBClient):
         Returns:
             List of tag type dictionaries.
         """
-        return await super().get_request(
+        return await self.get_request(
             endpoint="tag_types", response_key="tag_types", cls=TagType, **kwargs
         )
 
@@ -695,7 +647,7 @@ class SourceType(BaseModel):
         return repr(f"Name: {self.name}, id: {self.id}")
 
 
-class Asset(DDBClient):
+class Asset(DDB):
     id: str
     name: str
     project_id: str
@@ -908,7 +860,7 @@ class ItemType(BaseModel):
     updated_by: Staff
 
 
-class Project(DDBClient):
+class Project(DDB):
     centre_code: str
     job_number: str
     job_name_short: str
