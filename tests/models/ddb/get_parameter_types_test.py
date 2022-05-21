@@ -1,7 +1,7 @@
-from pyddb import DDB, Parameter, ParameterType
+from pyddb import DDB, Parameter, ParameterType, BaseURL
 import pytest
 
-ddb = DDB()
+ddb = DDB(url=BaseURL.sandbox)
 
 
 @pytest.mark.asyncio

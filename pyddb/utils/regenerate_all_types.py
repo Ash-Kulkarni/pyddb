@@ -1,10 +1,10 @@
-from pyddb import DDB
+from pyddb.models import DDB, BaseURL
 from pyddb.utils.write_data import write_data
 import asyncio
 
 
 async def regenerate_all_types():
-    ddb = DDB()
+    ddb = DDB(url=BaseURL.sandbox)
 
     (
         source_types,

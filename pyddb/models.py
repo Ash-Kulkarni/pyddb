@@ -139,45 +139,56 @@ class DDB(BaseModel):
             endpoint="assets", response_key="assets", cls=Asset, **kwargs
         )
 
-    async def post_source(self, source: "NewSource", reference_id):
-        existing_source = await self.get_sources(
-            reference_id=reference_id,
-            source_type_id=source.source_type.id,
-            title=source.title,
-            reference=source.reference,
-        )
-        if existing_source != []:
-            return existing_source[0]
-        else:
-            body = {
-                "source_type_id": source.source_type.id,
-                "title": source.title,
-                "reference": source.reference,
-                "reference_id": reference_id,
-                "reference_table": "projects",
-                "reference_url": "https://ddb.arup.com/project",
-            }
-
-            async with aiohttp.ClientSession() as session:
-                response = await session.post(
-                    f"{self.url}sources",
-                    json=body,
-                    headers=self.headers,
-                    ssl=False,
-                )
-                result = await response.json()
-
-                response = result["source"]
-            return Source(**response)
-
     async def post_sources(self, sources: List["NewSource"], reference_id: str):
-
-        return await asyncio.gather(
-            *[
-                self.post_source(source=source, reference_id=reference_id)
-                for source in sources
-            ]
+        source_bodies = []
+        existing_sources_to_return = []
+        existing_sources = await self.get_sources(
+            reference_id=reference_id,
+            source_type_id=list(set([source.source_type.id for source in sources])),
+            title=list(set([source.title for source in sources])),
+            reference=list(set([source.reference for source in sources])),
         )
+        for source in sources:
+
+            if source in existing_sources:
+                existing_sources_to_return.append(
+                    next(s for s in existing_sources if s == source)
+                )
+            else:
+                body = {
+                    "source_type_id": source.source_type.id,
+                    "title": source.title,
+                    "reference": source.reference,
+                    "reference_id": reference_id,
+                    "reference_table": "projects",
+                    "reference_url": "https://ddb.arup.com/project",
+                }
+            source_bodies.append(body)
+
+        async with aiohttp.ClientSession() as session:
+            responses = await asyncio.gather(
+                *[
+                    session.post(
+                        f"{self.url}sources",
+                        json=source_body,
+                        headers=self.headers,
+                        ssl=False,
+                    )
+                    for source_body in source_bodies
+                ]
+            )
+            results = await asyncio.gather(*[response.json() for response in responses])
+
+        return [Source(**result["source"]) for result in results]
+
+    # async def post_sources(self, sources: List["NewSource"], reference_id: str):
+
+    #     return await asyncio.gather(
+    #         *[
+    #             self.post_source(source=source, reference_id=reference_id)
+    #             for source in sources
+    #         ]
+    #     )
 
     async def handle_post_assets(
         self,
@@ -219,7 +230,7 @@ class DDB(BaseModel):
                 ]
 
     async def post_assets(self, project: "Project", assets: List["NewAsset"]):
-        ddb = DDB()
+        ddb = DDB(url=BaseURL.sandbox)
 
         # sort assets into hierarchy order
         asset_types = await ddb.get_asset_types()
@@ -365,37 +376,41 @@ class DDB(BaseModel):
 
         return response
 
-    async def post_new_revision(self, parameter: "NewParameter"):
-
-        updated_parameter = {
-            "source_id": parameter.revision.source.id,
-            "values": [
-                {
-                    "value": parameter.revision.value,
-                    "unit_id": parameter.revision.unit.id
-                    if parameter.revision.unit
-                    else None,
-                }
-            ],
-        }
+    async def post_new_revisions(self, parameters: List["NewParameter"]):
+        revision_bodies = {}
+        for parameter in parameters:
+            revision_bodies[parameter.id] = {
+                "source_id": parameter.revision.source.id,
+                "values": [
+                    {
+                        "value": parameter.revision.value,
+                        "unit_id": parameter.revision.unit.id
+                        if parameter.revision.unit
+                        else None,
+                    }
+                ],
+            }
 
         async with aiohttp.ClientSession() as session:
-            response = await session.post(
-                f"{self.url}parameters/{parameter.id}/revision",
-                json=updated_parameter,
-                headers=self.headers,
-                ssl=False,
+
+            responses = await asyncio.gather(
+                *[
+                    session.post(
+                        f"{self.url}parameters/{parameter_id}/revision",
+                        json=revision_body,
+                        headers=self.headers,
+                        ssl=False,
+                    )
+                    for parameter_id, revision_body in revision_bodies.items()
+                ]
             )
-            if response.status == 400:
-                res = await response.json()
-                print(res["details"])
 
-            return await response.json()
+            # return await response.json()
 
-    async def post_new_revisions(self, parameters: List["NewParameter"]):
-        return await asyncio.gather(
-            *[self.post_new_revision(parameter=parameter) for parameter in parameters]
-        )
+    # async def post_new_revisions(self, parameters: List["NewParameter"]):
+    #     return await asyncio.gather(
+    #         *[self.post_new_revision(parameter=parameter) for parameter in parameters]
+    #     )
 
     async def post_tag(self, tag: "Tag"):
         if isinstance(self, Project):
@@ -898,57 +913,6 @@ class Project(DDB):
 
     async def post_assets(self, assets: List["NewAsset"]):
         return await super().post_assets(project=self, assets=assets)
-
-    async def project_df_wip(self):
-        return pd.DataFrame(
-            [vars(parameter) for parameter in await self.get_parameters()],
-            columns=[
-                "parents_0_asset_type_name",
-                "parents_0_name",
-                "parents_0_id",
-                "id",
-                "parameter_type_name",
-                "revision_values_0_value",
-                "revision_values_0_unit_name",
-                "revision_source_source_type_name",
-                "revision_source_title",
-                "revision_source_reference",
-            ],
-        )
-
-        b = {
-            "parents_0_asset_type_name": "Asset Type",
-            "parents_0_name": "Asset Name",
-            "parents_0_id": "Asset ID",
-            "id": "Parameter ID",
-            "parameter_type_name": "Parameter Type",
-            "revision_values_0_value": "Value",
-            "revision_values_0_unit_name": "Unit",
-            "revision_source_source_type_name": "Source Type",
-            "revision_source_title": "Source Title",
-            "revision_source_reference": "Source Reference",
-        }
-        df_simple = df.copy()
-        df_simple.rename(columns=b, inplace=True)
-
-        return df_simple
-
-    async def assets_df_wip(self):
-        return pd.DataFrame(
-            [vars(asset) for asset in await self.get_assets()],
-            columns=["asset_type_name", "name", "id", "parent"],
-        )
-
-        b = {
-            "asset_type_name": "Asset Type",
-            "name": "Asset",
-            "id": "Asset ID",
-            "parent": "Parent Asset ID",
-        }
-        df_simple = df.copy()
-        df_simple.rename(columns=b, inplace=True)
-
-        return df_simple
 
 
 class TagType(BaseModel):

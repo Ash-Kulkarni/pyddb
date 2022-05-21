@@ -1,9 +1,9 @@
-from pyddb import DDB, Asset, NewAsset, get_asset_type_by_name
+from pyddb import DDB, Asset, NewAsset, get_asset_type_by_name, BaseURL
 import pytest
 
 
 async def get_test_asset():
-    ddb = DDB()
+    ddb = DDB(url=BaseURL.sandbox)
     [asset] = await ddb.get_assets(asset_id="34ad3f99-e1c4-42f0-8a71-dcaa75315efd")
     return asset
 

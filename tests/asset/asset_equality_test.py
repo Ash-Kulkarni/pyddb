@@ -1,10 +1,10 @@
-from pyddb import DDB, Asset, NewAsset
+from pyddb import DDB, Asset, NewAsset, BaseURL
 from pyddb.utils import get_asset_type_by_name
 import pytest
 
 
 async def get_test_asset():
-    ddb = DDB()
+    ddb = DDB(url=BaseURL.sandbox)
     [asset] = await ddb.get_assets(asset_id="34ad3f99-e1c4-42f0-8a71-dcaa75315efd")
     return asset
 
@@ -18,7 +18,7 @@ async def test_same_asset_is_equal():
 @pytest.mark.asyncio
 async def test_different_asset_is_not_equal():
     asset = await get_test_asset()
-    ddb = DDB()
+    ddb = DDB(url=BaseURL.sandbox)
     [other_asset] = await ddb.get_assets(
         asset_id="66a075a4-1b2e-4347-ab46-ed95e63ea57a"
     )
