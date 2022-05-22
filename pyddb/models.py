@@ -135,9 +135,12 @@ class DDB(BaseModel):
         Returns:
             List of asset dictionaries.
         """
-        return await self.get_request(
+        assets = await self.get_request(
             endpoint="assets", response_key="assets", cls=Asset, **kwargs
         )
+        for asset in assets:
+            setattr(asset, "url", self.url)
+        return assets
 
     async def post_sources(self, sources: List["NewSource"], reference_id: str):
         source_bodies = []
@@ -439,9 +442,12 @@ class DDB(BaseModel):
         Returns:
             List of project dictionaries.
         """
-        return await self.get_request(
+        projects = await self.get_request(
             endpoint="projects", response_key="projects", cls=Project, **kwargs
         )
+        for project in projects:
+            setattr(project, "url", self.url)
+        return projects
 
     async def post_project(self, project_number: str, confidential: bool = False):
         body = {"number": str(project_number), "confidential": confidential}
@@ -613,6 +619,12 @@ class UnitSystem(BaseModel):
     updated_at: str
     deleted_at: Optional[str]
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
+    def __repr__(self) -> str:
+        return repr(f"Name: {self.name}, ID: {self.id}")
+
 
 class Unit(BaseModel):
     id: str
@@ -623,13 +635,22 @@ class Unit(BaseModel):
     unit_type_id: Optional[str]
     unit_system_id: Optional[str]
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
+    def __repr__(self) -> str:
+        return repr(f"Name: {self.name}, ID: {self.id}")
+
 
 class AssetTypeGroup(BaseModel):
     id: str
     name: str
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
     def __repr__(self) -> str:
-        return repr(f"Name: {self.name}, id: {self.id}")
+        return repr(f"Name: {self.name}, ID: {self.id}")
 
 
 class AssetType(BaseModel):
@@ -642,14 +663,23 @@ class AssetType(BaseModel):
     asset_type_group: Optional[AssetTypeGroup]
     parent_id: Optional[str]
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
     def __repr__(self) -> str:
-        return repr(f"Name: {self.name}, id: {self.id}")
+        return repr(f"Name: {self.name}, ID: {self.id}")
 
 
 class AssetSubType(BaseModel):
     id: str
     name: str
     parent_asset_sub_type_id: Optional[str]
+
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
+    def __repr__(self) -> str:
+        return repr(f"Name: {self.name}, ID: {self.id}")
 
 
 class SourceType(BaseModel):
@@ -658,8 +688,11 @@ class SourceType(BaseModel):
     visible: bool
     deleted_at: Optional[str]
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
     def __repr__(self) -> str:
-        return repr(f"Name: {self.name}, id: {self.id}")
+        return repr(f"Name: {self.name}, ID: {self.id}")
 
 
 class Asset(DDB):
@@ -675,6 +708,9 @@ class Asset(DDB):
     asset_type_group: Optional[AssetTypeGroup] = None
     children: List[str]
     asset_type: Optional[AssetType]
+
+    def __str__(self) -> str:
+        return repr(f"Name: {self.name}, Type: {self.asset_type.name}")
 
     def __repr__(self) -> str:
         return repr(f"Name: {self.name}, Type: {self.asset_type.name}, ID: {self.id}")
@@ -715,6 +751,12 @@ class UnitType(BaseModel):
     created_at: str
     updated_at: str
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
+    def __repr__(self) -> str:
+        return repr(f"Name: {self.name}, ID: {self.id}")
+
 
 class ParameterType(BaseModel):
     id: str
@@ -728,8 +770,13 @@ class ParameterType(BaseModel):
     units: Optional[List[Unit]]
     unit_type: Optional[UnitType]
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
     def __repr__(self) -> str:
-        return repr("Name: " + self.name + ", Data type: " + self.data_type)
+        return repr(
+            f"Name: {self.name}, Data Type: {self.data_type}, ID: {self.id}, Unit Type:{self.unit_type if self.unit_type else None}"
+        )
 
     def __eq__(self, other):
         if isinstance(other, ParameterType):
@@ -761,8 +808,15 @@ class Source(BaseModel):
     url: Optional[Optional[str]] = None
     source_type: Optional[SourceType] = None
 
+    def __str__(self) -> str:
+        return str(
+            f"Title: {self.title}, Reference: {self.reference}, Source Type: {self.source_type.name}"
+        )
+
     def __repr__(self) -> str:
-        return repr(f"Title: {self.title}, reference: {self.reference}, id: {self.id}")
+        return repr(
+            f"Title: {self.title}, Reference: {self.reference}, Source Type: {self.source_type.name}, ID: {self.id}"
+        )
 
     def __eq__(self, other):
         if isinstance(other, Source):
@@ -788,6 +842,14 @@ class Value(BaseModel):
     value: Union[int, bool, str, float, None]
     unit: Optional[Unit]
 
+    def __str__(self) -> str:
+        return str(f"Value: {self.value}, Unit: {self.unit if self.unit else None}")
+
+    def __repr__(self) -> str:
+        return repr(
+            f"Value: {self.value}, Unit: {self.unit if self.unit else None}, ID: {self.id}"
+        )
+
 
 class Staff(BaseModel):
     staff_id: int
@@ -798,8 +860,13 @@ class Staff(BaseModel):
     grade_level: int
     my_people_page_url: str
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.staff_name}")
+
     def __repr__(self) -> str:
-        return repr(f"Name: {self.staff_name}")
+        return repr(
+            f"Name: {self.staff_name}, ID: {self.staff_id}, Email: {self.email}"
+        )
 
 
 class Revision(BaseModel):
@@ -812,9 +879,14 @@ class Revision(BaseModel):
     created_at: str
     created_by: Staff
 
+    def __str__(self) -> str:
+        return str(
+            f"Value: {self.values[0].__str__()}, Source: {self.source.__str__()}, Status: {self.status}"
+        )
+
     def __repr__(self) -> str:
         return repr(
-            f"Value: {self.values}, Created by: {self.created_by.staff_name}, Status: {self.status}, Source: {self.source.title} - {self.source.reference}"
+            f"Value: {self.values[0].__repr__()}, Source: {self.source.__repr__()}, Status: {self.status}, ID: {self.id}"
         )
 
     def __eq__(self, other):
@@ -846,6 +918,16 @@ class Parameter(BaseModel):
     revision: Optional[Revision]
     deleted_at: Optional[str]
 
+    def __str__(self) -> str:
+        return str(
+            f"Parameter Type: {self.parameter_type}, Revision: {self.revision.__str__() if self.revision else None}"
+        )
+
+    def __repr__(self) -> str:
+        return repr(
+            f"Parameter Type: {self.parameter_type}, Revision: {self.revision.__repr__() if self.revision else None}, ID: {self.id}"
+        )
+
     def __eq__(self, other):
         if isinstance(other, Parameter):
             if other.id == self.id:
@@ -874,6 +956,16 @@ class ItemType(BaseModel):
     created_by: Staff
     updated_by: Staff
 
+    def __str__(self) -> str:
+        return str(
+            f"Parameter Type: {self.parameter_type.name}, Asset Type: {self.asset_type.name}"
+        )
+
+    def __repr__(self) -> str:
+        return repr(
+            f"Parameter Type: {self.parameter_type.name}, Asset Type: {self.asset_type.name}, ID: {self.id}"
+        )
+
 
 class Project(DDB):
     centre_code: str
@@ -895,8 +987,13 @@ class Project(DDB):
     updated_at: str
     deleted_at: Optional[str]
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.job_name_short}, Project Number: {self.project_code}")
+
     def __repr__(self) -> str:
-        return repr(f"Name: {self.job_name_short}, Project Number: {self.project_code}")
+        return repr(
+            f"Name: {self.job_name_short}, Project Number: {self.project_code}, ID: {self.project_id}"
+        )
 
     async def get_assets(self, **kwargs):
         return await super().get_assets(project_id=self.project_id, **kwargs)
@@ -922,6 +1019,12 @@ class TagType(BaseModel):
     updated_at: str
     deleted_at: Optional[str]
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}")
+
+    def __repr__(self) -> str:
+        return repr(f"Name: {self.name}, ID: {self.id}")
+
 
 class Tag(BaseModel):
     id: str
@@ -932,6 +1035,12 @@ class Tag(BaseModel):
     deleted_at: Optional[str]
     tag_type: TagType
 
+    def __str__(self) -> str:
+        return str(f"Name: {self.name}, Tag Type: {self.tag_type}")
+
+    def __repr__(self) -> str:
+        return repr(f"Name: {self.name}, Tag Type: {self.tag_type}, ID: {self.id}")
+
 
 class NewSource(BaseModel):
     source_type: SourceType
@@ -941,6 +1050,16 @@ class NewSource(BaseModel):
     day: Optional[str] = "1"
     month: Optional[str] = "1"
     year: Optional[str] = "2001"
+
+    def __str__(self) -> str:
+        return str(
+            f"Title: {self.title}, Reference: {self.reference}, Source Type: {self.source_type.name}"
+        )
+
+    def __repr__(self) -> str:
+        return repr(
+            f"Title: {self.title}, Reference: {self.reference}, Source Type: {self.source_type.name}"
+        )
 
     def __eq__(self, other):
         if isinstance(other, NewSource) or isinstance(other, Source):
@@ -965,6 +1084,12 @@ class NewRevision(BaseModel):
     source: Union[Source, NewSource]
     comment: str = "Empty"
     location_in_source: str = "Empty"
+
+    def __str__(self) -> str:
+        return str(f"Value: {self.value}, Source: {self.source.__str__()}")
+
+    def __repr__(self) -> str:
+        return repr(f"Value: {self.value}, Source: {self.source.__repr__()}")
 
     def __eq__(self, other):
         if isinstance(other, NewRevision):
@@ -996,6 +1121,12 @@ class NewAsset(BaseModel):
     name: str
     parent: Optional[Union[Asset, "NewAsset"]]
 
+    def __str__(self) -> str:
+        return repr(f"Name: {self.name}, Type: {self.asset_type.name}")
+
+    def __repr__(self) -> str:
+        return repr(f"Name: {self.name}, Type: {self.asset_type.name}, ID: {self.id}")
+
     def __eq__(self, other):
         if isinstance(other, Asset) or isinstance(other, NewAsset):
             if (
@@ -1015,6 +1146,16 @@ class NewParameter(BaseModel):
     parameter_type: ParameterType
     revision: Optional[NewRevision]
     parent: Optional[Union[Asset, "NewAsset"]]
+
+    def __str__(self) -> str:
+        return str(
+            f"Parameter Type: {self.parameter_type}, Revision: {self.revision.__str__() if self.revision else None}"
+        )
+
+    def __repr__(self) -> str:
+        return repr(
+            f"Parameter Type: {self.parameter_type}, Revision: {self.revision.__repr__() if self.revision else None}"
+        )
 
     def __eq__(self, other):
         if isinstance(other, Parameter) or isinstance(other, NewParameter):
