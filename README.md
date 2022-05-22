@@ -28,7 +28,7 @@ pip install git+https://github.com/arup-group/ddbpy_auth.git
 You can install the client from its [GitHub listing](https://github.com/arup-group/pyddb) using:
 
 ```python
-pip install git+https://github.com/Ash-Kulkarni/pyddb
+pip install git+https://github.com/Ash-Kulkarni/pyddb.git
 ```
 
 ## Quick Start
@@ -36,10 +36,10 @@ pip install git+https://github.com/Ash-Kulkarni/pyddb
 ### Getting Data
 
 ```python
-from pyddb import DDB
+from pyddb import DDB, BaseURL
 
 # instantiate client and prompt user for arup credentials
-ddb = DDB()
+ddb = DDB(url=BaseURL.sandbox)
 
 # retreive a project from ddb
 my_project = await ddb.get_project_by_number(12345678)
@@ -59,10 +59,10 @@ Each of these are objects with rich metadata. For example, each parameter has de
 ### Posting Data
 
 ```python
-from pyddb import DDB
+from pyddb import DDB, BaseURL
 
 # instantiate client and prompt user for arup credentials
-ddb = DDB()
+ddb = DDB(url=BaseURL.sandbox)
 
 # post and retreive a project from ddb
 my_project = await ddb.post_project(12345678)
