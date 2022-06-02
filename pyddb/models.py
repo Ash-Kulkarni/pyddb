@@ -1,6 +1,6 @@
 import asyncio
 from enum import Enum
-from typing import List, Optional, Type, Union
+from typing import Any, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
 import aiohttp
@@ -857,7 +857,7 @@ class Source(BaseModel):
 
 class Value(BaseModel):
     id: Optional[str]
-    value: Union[float, bool, str, None]
+    value: Any  # Union[float, bool, str, None]
     unit: Optional[Unit]
 
     def __str__(self) -> str:
