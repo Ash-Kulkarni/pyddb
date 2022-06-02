@@ -2,7 +2,6 @@ import asyncio
 from enum import Enum
 from typing import Any, List, Optional, Type, Union
 from uuid import UUID, uuid4
-
 import aiohttp
 import pandas as pd
 from DDBpy_auth import DDBAuth
@@ -229,15 +228,17 @@ class DDB(BaseModel):
                 result = await response.json()
                 response_list = result["assets"]
                 return [Asset(**x) for x in response_list]
-            elif response.status == 400:
-                existing_assets = await self.get_assets(
+            elif response.status == 422:
+                existing_assets = await project.get_assets(
                     asset_type_id=[a.asset_type.id for a in assets],
                 )
-                return [
-                    asset
-                    for asset in existing_assets
-                    if asset.name in [a.name for a in assets]
-                ]
+                returned_assets = []
+                for new_asset in assets:
+                    for asset in existing_assets:
+                        if asset == new_asset:
+                            returned_assets.append(asset)
+
+                return returned_assets
             else:
                 print("Error posting assets")
 
@@ -254,23 +255,31 @@ class DDB(BaseModel):
         sorted_new_assets = sorted(
             assets,
             key=lambda x: asset_types_order.index(x.asset_type.name),
-            reverse=True,
+            reverse=False,
         )
 
         existing_assets = await project.get_assets()
         new_assets = []
         returned_assets = []
         for asset in sorted_new_assets:
-            new = False
-            if isinstance(asset.parent, Asset) or asset.parent is None:
-                if asset in existing_assets:
-                    asset = next(a for a in existing_assets if a == asset)
-                    returned_assets.append(asset)
-                else:
-                    new = True
-            else:
-                new = True
 
+            new = True
+            if isinstance(asset.parent, Asset) or asset.parent is None:
+                for existing_asset in existing_assets:
+
+                    if existing_asset.__eq__(asset):
+
+                        this_existing_asset = next(
+                            a for a in existing_assets if a == asset
+                        )
+
+                        returned_assets.append(this_existing_asset)
+                        for child in sorted_new_assets:
+
+                            if child.parent == asset:
+
+                                child.parent = this_existing_asset
+                        new = False
             if new:
                 new_assets.append(
                     NewAsset(
@@ -280,7 +289,7 @@ class DDB(BaseModel):
                         parent=asset.parent,
                     )
                 )
-        if new_assets:
+        if new_assets != []:
             returned_assets += await self.handle_post_assets(
                 project=project, assets=new_assets
             )
@@ -392,6 +401,7 @@ class DDB(BaseModel):
             endpoint="parameters",
             body=body,
         )
+
         if response.status == 400:
             res = await response.json()
 
@@ -749,7 +759,10 @@ class Asset(DDB):
                 return True
             else:
                 return False
+        elif other == None:
+            return False
         else:
+            print(type(other).__name__)
             raise NotImplementedError
 
     async def get_assets(self, **kwargs):
@@ -1155,6 +1168,8 @@ class NewAsset(BaseModel):
                 return True
             else:
                 return False
+        elif other == None:
+            return False
         else:
             raise NotImplementedError
 
