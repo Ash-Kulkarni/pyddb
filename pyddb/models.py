@@ -145,6 +145,7 @@ class DDB(BaseModel):
     async def post_sources(self, sources: List["NewSource"], reference_id: str):
         source_bodies = []
         existing_sources_to_return = []
+        results = None
         existing_sources = await self.get_sources(
             reference_id=reference_id,
             source_type_id=list(set([source.source_type.id for source in sources])),
@@ -166,23 +167,29 @@ class DDB(BaseModel):
                     "reference_table": "projects",
                     "reference_url": "https://ddb.arup.com/project",
                 }
-            source_bodies.append(body)
+                source_bodies.append(body)
 
-        async with aiohttp.ClientSession() as session:
-            responses = await asyncio.gather(
-                *[
-                    session.post(
-                        f"{self.url}sources",
-                        json=source_body,
-                        headers=self.headers,
-                        ssl=False,
-                    )
-                    for source_body in source_bodies
-                ]
-            )
-            results = await asyncio.gather(*[response.json() for response in responses])
-
-        return [Source(**result["source"]) for result in results]
+        if source_bodies != []:
+            async with aiohttp.ClientSession() as session:
+                responses = await asyncio.gather(
+                    *[
+                        session.post(
+                            f"{self.url}sources",
+                            json=source_body,
+                            headers=self.headers,
+                            ssl=False,
+                        )
+                        for source_body in source_bodies
+                    ]
+                )
+                results = await asyncio.gather(
+                    *[response.json() for response in responses]
+                )
+        if results:
+            existing_sources_to_return += [
+                Source(**result["source"]) for result in results
+            ]
+        return existing_sources_to_return
 
     # async def post_sources(self, sources: List["NewSource"], reference_id: str):
 
@@ -222,7 +229,7 @@ class DDB(BaseModel):
                 result = await response.json()
                 response_list = result["assets"]
                 return [Asset(**x) for x in response_list]
-            if response.status == 400:
+            elif response.status == 400:
                 existing_assets = await self.get_assets(
                     asset_type_id=[a.asset_type.id for a in assets],
                 )
@@ -231,6 +238,12 @@ class DDB(BaseModel):
                     for asset in existing_assets
                     if asset.name in [a.name for a in assets]
                 ]
+            else:
+                print("Error posting assets")
+
+                print(response.status)
+                print(body)
+                return []
 
     async def post_assets(self, project: "Project", assets: List["NewAsset"]):
         ddb = DDB(url=BaseURL.sandbox)
@@ -246,12 +259,13 @@ class DDB(BaseModel):
 
         existing_assets = await project.get_assets()
         new_assets = []
+        returned_assets = []
         for asset in sorted_new_assets:
-
             new = False
             if isinstance(asset.parent, Asset) or asset.parent is None:
                 if asset in existing_assets:
                     asset = next(a for a in existing_assets if a == asset)
+                    returned_assets.append(asset)
                 else:
                     new = True
             else:
@@ -266,7 +280,11 @@ class DDB(BaseModel):
                         parent=asset.parent,
                     )
                 )
-        await self.handle_post_assets(project=project, assets=new_assets)
+        if new_assets:
+            returned_assets += await self.handle_post_assets(
+                project=project, assets=new_assets
+            )
+        return returned_assets
 
     async def post_parameters(
         self, project: "Project", parameters: List["NewParameter"]
@@ -839,7 +857,7 @@ class Source(BaseModel):
 
 class Value(BaseModel):
     id: Optional[str]
-    value: Union[int, bool, str, float, None]
+    value: Union[float, bool, str, None]
     unit: Optional[Unit]
 
     def __str__(self) -> str:
