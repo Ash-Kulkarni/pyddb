@@ -272,14 +272,15 @@ class DDB(BaseModel):
                         this_existing_asset = next(
                             a for a in existing_assets if a == asset
                         )
-
                         returned_assets.append(this_existing_asset)
+
                         for child in sorted_new_assets:
-
-                            if child.parent == asset:
-
+                            if (
+                                child.parent
+                                and child.parent.asset_type == asset.asset_type
+                                and child.parent.id == asset.id
+                            ):
                                 child.parent = this_existing_asset
-                        new = False
             if new:
                 new_assets.append(
                     NewAsset(
@@ -1162,11 +1163,13 @@ class NewAsset(BaseModel):
 
     def __eq__(self, other):
         if isinstance(other, Asset) or isinstance(other, NewAsset):
+
             if (
                 other.parent == self.parent
                 and other.asset_type == self.asset_type
                 and other.name == self.name
             ):
+
                 return True
             else:
                 return False
