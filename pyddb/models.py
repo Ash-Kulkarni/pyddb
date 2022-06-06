@@ -331,7 +331,9 @@ class DDB(BaseModel):
                             "id",
                             next(
                                 p.id
-                                for p in project_parameters
+                                for p in [
+                                    x for x in project_parameters if x.parents != []
+                                ]
                                 if p.parameter_type.id == parameter.parameter_type.id
                                 and p.parents[0].id == parameter.parent.id
                             ),
