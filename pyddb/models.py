@@ -250,8 +250,75 @@ class DDB(BaseModel):
         ddb = DDB(url=BaseURL.sandbox)
 
         # sort assets into hierarchy order
-        asset_types = await ddb.get_asset_types()
-        asset_types_order = [a.name for a in asset_types]
+        # asset_types = await ddb.get_asset_types()
+        # asset_types_order = [a.name for a in asset_types]
+
+        asset_types_order = [
+            "site",
+            "building",
+            "space type",
+            "space instance",
+            "building system",
+            "building envelope",
+            "network link",
+            "network asset",
+            "masterplanning site",
+            "plot",
+            "equipment type",
+            "equipment sub type",
+            "area",
+            "ground model",
+            "layer",
+            "case",
+            "assembly",
+            "2nd level sub component",
+            "3rd level sub component",
+            "bridge components",
+            "vehicles",
+            "railway",
+            "track type",
+            "wire run",
+            "overhead line engineering",
+            "bed formation",
+            "span",
+            "in span equipment",
+            "material",
+            "bridge",
+            "deck/support/non structural elements",
+            "span/support/ancillary",
+            "network asset element instance",
+            "network asset element type",
+            "track sub type",
+            "network asset component",
+            "building element instance",
+            "bridge element type",
+            "sub system",
+            "network asset sub element type",
+            "bridge component name",
+            "network asset system",
+            "network asset alignment",
+            "building sub frame material",
+            "building envelope material",
+            "building element sub type",
+            "track alignment",
+            "building envelope component",
+            "building sub frame",
+            "network asset sub element instance",
+            "building frame",
+            "masterplanning area",
+            "product type",
+            "generic",
+            "product",
+            "system group",
+            "building envelope system",
+            "network asset frame",
+            "network asset sub component",
+            "building element type",
+            "bridge component element",
+            "network asset element sub type",
+            "bridge panel",
+        ]
+
         sorted_new_assets = sorted(
             assets,
             key=lambda x: asset_types_order.index(x.asset_type.name),
@@ -262,24 +329,17 @@ class DDB(BaseModel):
         new_assets = []
         returned_assets = []
         for asset in sorted_new_assets:
-
             new = True
             if isinstance(asset.parent, Asset) or asset.parent is None:
                 for existing_asset in existing_assets:
 
                     if existing_asset.__eq__(asset):
-
                         this_existing_asset = next(
                             a for a in existing_assets if a == asset
                         )
                         returned_assets.append(this_existing_asset)
-
                         for child in sorted_new_assets:
-                            if (
-                                child.parent
-                                and child.parent.asset_type == asset.asset_type
-                                and child.parent.id == asset.id
-                            ):
+                            if child.parent and child.parent.id == asset.id:
                                 child.parent = this_existing_asset
             if new:
                 new_assets.append(
