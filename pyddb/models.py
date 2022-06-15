@@ -438,7 +438,6 @@ class DDB(BaseModel):
                     }
                 )
             else:
-
                 parameter_body = {
                     "parameter_type_id": parameter.parameter_type.id,
                     "project_id": project.project_id,
@@ -554,7 +553,10 @@ class DDB(BaseModel):
                 response = await self.get_projects(number=project_number)
                 return response[0]
             result = await response.json()
-        return Project(**result["project"])
+        projects = Project(**result["project"])
+        for project in projects:
+            setattr(project, "url", self.url)
+        return projects
 
     async def get_source_types(self, **kwargs):
         """Retreives list of source types objects."""
@@ -720,8 +722,8 @@ class UnitSystem(BaseModel):
 class Unit(BaseModel):
     id: str
     name: str
-    created_at: str
-    updated_at: str
+    created_at: Optional[str]
+    updated_at: Optional[str]
     deleted_at: Optional[str]
     unit_type_id: Optional[str]
     unit_system_id: Optional[str]
@@ -842,8 +844,8 @@ class Asset(DDB):
 class UnitType(BaseModel):
     id: str
     name: str
-    created_at: str
-    updated_at: str
+    created_at: Optional[str]
+    updated_at: Optional[str]
 
     def __str__(self) -> str:
         return str(f"Name: {self.name}")
@@ -1105,6 +1107,14 @@ class Project(DDB):
     async def post_assets(self, assets: List["NewAsset"]):
         return await super().post_assets(project=self, assets=assets)
 
+    async def delete(self):
+        async with aiohttp.ClientSession() as session:
+            return await session.delete(
+                f"{self.url}projects/{self.project_id}",
+                headers=self.headers,
+                ssl=False,
+            )
+
 
 class TagType(BaseModel):
     id: str
@@ -1205,7 +1215,11 @@ class NewRevision(BaseModel):
             else:
                 return False
 
+        elif other == None:
+            return False
         else:
+            print(type(other).__name__)
+            print(other)
             raise NotImplementedError
 
 
