@@ -63,7 +63,7 @@ class DDB(BaseModel):
 
     async def patch_request(self, endpoint: str, body: dict):
         async with aiohttp.ClientSession() as session:
-            return await session.delete(
+            return await session.patch(
                 f"{self.url}{endpoint}",
                 json=body,
                 headers=self.headers,
@@ -223,7 +223,6 @@ class DDB(BaseModel):
                 headers=self.headers,
                 ssl=False,
             )
-
             if response.status == 201:
                 result = await response.json()
                 response_list = result["assets"]
@@ -819,7 +818,7 @@ class Asset(DDB):
             if (
                 other_parent == self.parent
                 and other.asset_type == self.asset_type
-                and other.name == self.name
+                and other.name.lower() == self.name.lower()
             ):
                 return True
             else:
@@ -839,6 +838,17 @@ class Asset(DDB):
     async def post_sources(self, sources: List["NewSource"]):
 
         return await super().post_sources(sources=sources, reference_id=self.project_id)
+
+    async def delete(self, delete_children=False):
+        async with aiohttp.ClientSession() as session:
+            return await session.delete(
+                f"{self.url}assets/{self.id}",
+                headers=self.headers,
+                ssl=False,
+            )
+            # if response.status == ... and delete_children:
+            # get children:
+            # asyncio.gather([a.delete() for a in children])
 
 
 class UnitType(BaseModel):
@@ -1241,7 +1251,7 @@ class NewAsset(BaseModel):
             if (
                 other.parent == self.parent
                 and other.asset_type == self.asset_type
-                and other.name == self.name
+                and other.name.lower() == self.name.lower()
             ):
 
                 return True
