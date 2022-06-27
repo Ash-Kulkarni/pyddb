@@ -63,7 +63,7 @@ class DDB(BaseModel):
 
     async def patch_request(self, endpoint: str, body: dict):
         async with aiohttp.ClientSession() as session:
-            return await session.patch(
+            return await session.delete(
                 f"{self.url}{endpoint}",
                 json=body,
                 headers=self.headers,
@@ -223,6 +223,7 @@ class DDB(BaseModel):
                 headers=self.headers,
                 ssl=False,
             )
+
             if response.status == 201:
                 result = await response.json()
                 response_list = result["assets"]
@@ -361,14 +362,22 @@ class DDB(BaseModel):
 
         project_parameters = await project.get_parameters(
             page_limit=99999,
-            parameter_type_id=[p.parameter_type.id for p in parameters],
+            # parameter_type_id=[p.parameter_type.id for p in parameters],
         )
+
         existing_parameters = [
             (p.parameter_type.id, p.parents[0].id if p.parents else None)
             for p in project_parameters
         ]
         existing_revisions = [
-            (p.parameter_type.id, p.parents[0].id if p.parents else None, p.revision)
+            (
+                p.parameter_type.id,
+                p.parents[0].id if p.parents else None,
+                p.revision.values[0].value if p.revision else None,
+                p.revision.values[0].unit if p.revision else None,
+                p.revision.source.title if p.revision else None,
+                p.revision.source.reference if p.revision else None,
+            )
             for p in project_parameters
         ]
         new_parameters = []
@@ -378,10 +387,14 @@ class DDB(BaseModel):
                 parameter.parameter_type.id,
                 parameter.parent.id if parameter.parent else None,
             ) in existing_parameters:
+
                 if (
                     parameter.parameter_type.id,
                     parameter.parent.id if parameter.parent else None,
-                    parameter.revision,
+                    parameter.revision.value if parameter.revision else None,
+                    parameter.revision.unit if parameter.revision else None,
+                    parameter.revision.source.title if parameter.revision else None,
+                    parameter.revision.source.reference if parameter.revision else None,
                 ) in existing_revisions:
                     continue
                 else:
@@ -458,15 +471,16 @@ class DDB(BaseModel):
                 parameter_body["parent_ids"] = str(parameter.parent.id)
             body["parameters"].append(parameter_body)
 
-        response = await self.post_request(
-            endpoint="parameters",
-            body=body,
-        )
+        if body != {"parameters": []}:
+            response = await self.post_request(
+                endpoint="parameters",
+                body=body,
+            )
 
-        if response.status == 400:
-            res = await response.json()
-
-        return response
+            if response.status == 400:
+                res = await response.json()
+            return response
+        return None
 
     async def post_new_revisions(self, parameters: List["NewParameter"]):
         revision_bodies = {}
@@ -818,7 +832,7 @@ class Asset(DDB):
             if (
                 other_parent == self.parent
                 and other.asset_type == self.asset_type
-                and other.name.lower() == self.name.lower()
+                and other.name == self.name
             ):
                 return True
             else:
@@ -838,17 +852,6 @@ class Asset(DDB):
     async def post_sources(self, sources: List["NewSource"]):
 
         return await super().post_sources(sources=sources, reference_id=self.project_id)
-
-    async def delete(self, delete_children=False):
-        async with aiohttp.ClientSession() as session:
-            return await session.delete(
-                f"{self.url}assets/{self.id}",
-                headers=self.headers,
-                ssl=False,
-            )
-            # if response.status == ... and delete_children:
-            # get children:
-            # asyncio.gather([a.delete() for a in children])
 
 
 class UnitType(BaseModel):
@@ -912,16 +915,14 @@ class Source(BaseModel):
     scope: Optional[Optional[str]] = None
     title: Optional[str] = None
     url: Optional[Optional[str]] = None
-    source_type: Optional[SourceType] = None
+    source_type_id: Optional[str] = None
 
     def __str__(self) -> str:
-        return str(
-            f"Title: {self.title}, Reference: {self.reference}, Source Type: {self.source_type.name}"
-        )
+        return str(f"Title: {self.title}, Reference: {self.reference}")
 
     def __repr__(self) -> str:
         return repr(
-            f"Title: {self.title}, Reference: {self.reference}, Source Type: {self.source_type.name}, ID: {self.id}"
+            f"Title: {self.title}, Reference: {self.reference}, Source Type ID: {self.source_type_id}, ID: {self.id}"
         )
 
     def __eq__(self, other):
@@ -934,7 +935,7 @@ class Source(BaseModel):
             if (
                 other.title == self.title
                 and other.reference == self.reference
-                and other.source_type == self.source_type
+                and other.source_type.id == self.source_type_id
             ):
                 return True
             else:
@@ -1176,12 +1177,22 @@ class NewSource(BaseModel):
         )
 
     def __eq__(self, other):
-        if isinstance(other, NewSource) or isinstance(other, Source):
+        if isinstance(other, NewSource):
 
             if (
                 other.title == self.title
                 and other.reference == self.reference
                 and other.source_type == self.source_type
+            ):
+
+                return True
+            else:
+                return False
+        elif isinstance(other, Source):
+            if (
+                other.title == self.title
+                and other.reference == self.reference
+                and other.source_type_id == self.source_type.id
             ):
 
                 return True
@@ -1251,7 +1262,7 @@ class NewAsset(BaseModel):
             if (
                 other.parent == self.parent
                 and other.asset_type == self.asset_type
-                and other.name.lower() == self.name.lower()
+                and other.name == self.name
             ):
 
                 return True
