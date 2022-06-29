@@ -8,6 +8,12 @@ from DDBpy_auth import DDBAuth
 from pydantic import BaseModel, Field
 
 
+def split_list(list_a, chunk_size):
+
+    for i in range(0, len(list_a), chunk_size):
+        yield list_a[i : i + chunk_size]
+
+
 class BaseURL(str, Enum):
     """ "Base URLs corresponding to DDB environments. Using an Enum instead
     of a dictionary to help with auto-completion and avoid magic strings."""
@@ -230,7 +236,7 @@ class DDB(BaseModel):
                 return [Asset(**x) for x in response_list]
             elif response.status == 422:
                 existing_assets = await project.get_assets(
-                    asset_type_id=[a.asset_type.id for a in assets],
+                    asset_type_id=list(set([a.asset_type.id for a in assets])),
                 )
                 returned_assets = []
                 for new_asset in assets:
@@ -439,11 +445,12 @@ class DDB(BaseModel):
         project: "Project",
         parameters: List["NewParameter"],
     ):
-        body = {"parameters": []}
+
+        new_parameters = []
 
         for parameter in parameters:
             if not parameter.revision:
-                body["parameters"].append(
+                new_parameters.append(
                     {
                         "parameter_type_id": parameter.parameter_type.id,
                         "project_id": project.project_id,
@@ -469,17 +476,30 @@ class DDB(BaseModel):
                 }
             if parameter.parent:
                 parameter_body["parent_ids"] = str(parameter.parent.id)
-            body["parameters"].append(parameter_body)
+            new_parameters.append(parameter_body)
 
-        if body != {"parameters": []}:
-            response = await self.post_request(
-                endpoint="parameters",
-                body=body,
-            )
+        if new_parameters != []:
+            parameter_lists = list(split_list(new_parameters, 40))
+            tasks = []
+            for parameter_list in parameter_lists:
+                body = {"parameters": parameter_list}
+                tasks.append(
+                    self.post_request(
+                        endpoint="parameters",
+                        body=body,
+                    )
+                )
 
-            if response.status == 400:
-                res = await response.json()
-            return response
+            responses = await asyncio.gather(*tasks)
+            for response in responses:
+
+                if response.status == 400:
+                    print("400 Error")
+                    # res = await response.json()
+                if response.status == 500:
+                    print("500 Error")
+                    # res = await response.json()
+            return responses
         return None
 
     async def post_new_revisions(self, parameters: List["NewParameter"]):
@@ -894,6 +914,7 @@ class ParameterType(BaseModel):
             else:
                 return False
         else:
+            print(other)
             raise NotImplementedError
 
 
@@ -1049,7 +1070,10 @@ class Parameter(BaseModel):
                 return True
             else:
                 return False
+        # elif isinstance(other, dict):
+        #     all(hasattr(attr) for attr in [""])
         else:
+            print(other)
             raise NotImplementedError
 
 
