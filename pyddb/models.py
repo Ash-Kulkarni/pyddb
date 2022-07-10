@@ -4,7 +4,6 @@ from typing import List, Optional, Type, Union
 from uuid import UUID, uuid4
 
 import aiohttp
-import pandas as pd
 from DDBpy_auth import DDBAuth
 from pydantic import BaseModel, Field
 
