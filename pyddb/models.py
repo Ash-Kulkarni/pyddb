@@ -25,7 +25,7 @@ class BaseURL(str, Enum):
 
 def generate_payload(**kwargs):
     """Generates a dictionary of provided keywords and values."""
-    return {key: value for (key, value) in kwargs.items()}
+    return dict(kwargs.items())
 
 
 class DDB(BaseModel):
@@ -153,10 +153,11 @@ class DDB(BaseModel):
         results = None
         existing_sources = await self.get_sources(
             reference_id=reference_id,
-            source_type_id=list(set([source.source_type.id for source in sources])),
-            title=list(set([source.title for source in sources])),
-            reference=list(set([source.reference for source in sources])),
+            source_type_id=list({source.source_type.id for source in sources}),
+            title=list({source.title for source in sources}),
+            reference=list({source.reference for source in sources}),
         )
+
         for source in sources:
 
             if source in existing_sources:
@@ -236,13 +237,14 @@ class DDB(BaseModel):
                 return [Asset(**x) for x in response_list]
             elif response.status == 422:
                 existing_assets = await project.get_assets(
-                    asset_type_id=list(set([a.asset_type.id for a in assets])),
+                    asset_type_id=list({a.asset_type.id for a in assets})
                 )
+
                 returned_assets = []
                 for new_asset in assets:
-                    for asset in existing_assets:
-                        if asset == new_asset:
-                            returned_assets.append(asset)
+                    returned_assets.extend(
+                        asset for asset in existing_assets if asset == new_asset
+                    )
 
                 return returned_assets
             else:
@@ -253,7 +255,7 @@ class DDB(BaseModel):
                 return []
 
     async def post_assets(self, project: "Project", assets: List["NewAsset"]):
-        ddb = DDB(url=BaseURL.sandbox)
+        # ddb = DDB(url=BaseURL.sandbox)
 
         # sort assets into hierarchy order
         # asset_types = await ddb.get_asset_types()
@@ -335,7 +337,6 @@ class DDB(BaseModel):
         new_assets = []
         returned_assets = []
         for asset in sorted_new_assets:
-            new = True
             if isinstance(asset.parent, Asset) or asset.parent is None:
                 for existing_asset in existing_assets:
 
@@ -347,15 +348,15 @@ class DDB(BaseModel):
                         for child in sorted_new_assets:
                             if child.parent and child.parent.id == asset.id:
                                 child.parent = this_existing_asset
-            if new:
-                new_assets.append(
-                    NewAsset(
-                        id=str(asset.id),
-                        asset_type=asset.asset_type,
-                        name=asset.name,
-                        parent=asset.parent,
-                    )
-                )
+                    else:
+                        new_assets.append(
+                            NewAsset(
+                                id=str(asset.id),
+                                asset_type=asset.asset_type,
+                                name=asset.name,
+                                parent=asset.parent,
+                            )
+                        )
         if new_assets != []:
             returned_assets += await self.handle_post_assets(
                 project=project, assets=new_assets
@@ -403,34 +404,31 @@ class DDB(BaseModel):
                     parameter.revision.source.reference if parameter.revision else None,
                 ) in existing_revisions:
                     continue
+                if parameter.parent:
+                    setattr(
+                        parameter,
+                        "id",
+                        next(
+                            p.id
+                            for p in [x for x in project_parameters if x.parents != []]
+                            if p.parameter_type.id == parameter.parameter_type.id
+                            and p.parents[0].id == parameter.parent.id
+                        ),
+                    )
+
                 else:
-                    if parameter.parent:
-                        setattr(
-                            parameter,
-                            "id",
-                            next(
-                                p.id
-                                for p in [
-                                    x for x in project_parameters if x.parents != []
-                                ]
-                                if p.parameter_type.id == parameter.parameter_type.id
-                                and p.parents[0].id == parameter.parent.id
-                            ),
-                        )
+                    setattr(
+                        parameter,
+                        "id",
+                        next(
+                            p.id
+                            for p in project_parameters
+                            if p.parameter_type.id == parameter.parameter_type.id
+                            and not p.parents
+                        ),
+                    )
 
-                    else:
-                        setattr(
-                            parameter,
-                            "id",
-                            next(
-                                p.id
-                                for p in project_parameters
-                                if p.parameter_type.id == parameter.parameter_type.id
-                                and not p.parents
-                            ),
-                        )
-
-                    new_revisions.append(parameter)
+                new_revisions.append(parameter)
             else:
 
                 new_parameters.append(parameter)
@@ -503,9 +501,8 @@ class DDB(BaseModel):
         return None
 
     async def post_new_revisions(self, parameters: List["NewParameter"]):
-        revision_bodies = {}
-        for parameter in parameters:
-            revision_bodies[parameter.id] = {
+        revision_bodies = {
+            parameter.id: {
                 "source_id": parameter.revision.source.id,
                 "values": [
                     {
@@ -516,6 +513,8 @@ class DDB(BaseModel):
                     }
                 ],
             }
+            for parameter in parameters
+        }
 
         async with aiohttp.ClientSession() as session:
 
@@ -573,7 +572,7 @@ class DDB(BaseModel):
         return projects
 
     async def post_project(self, project_number: str, confidential: bool = False):
-        body = {"number": str(project_number), "confidential": confidential}
+        body = {"number": project_number, "confidential": confidential}
         async with aiohttp.ClientSession() as session:
             response = await session.post(
                 f"{self.url}projects",
@@ -842,23 +841,22 @@ class Asset(DDB):
         return repr(f"Name: {self.name}, Type: {self.asset_type.name}, ID: {self.id}")
 
     def __eq__(self, other):
-        if isinstance(other, Asset):
-            if other.id == self.id:
-                return True
-            else:
-                return False
+        if isinstance(other, Asset) and other.id == self.id:
+            return True
+        elif (
+            isinstance(other, Asset)
+            or not isinstance(other, NewAsset)
+            and other == None
+        ):
+            return False
         elif isinstance(other, NewAsset):
             other_parent = other.parent.id if other.parent else other.parent
-            if (
+            return (
                 other_parent == self.parent
                 and other.asset_type == self.asset_type
                 and other.name == self.name
-            ):
-                return True
-            else:
-                return False
-        elif other == None:
-            return False
+            )
+
         else:
             print(type(other).__name__)
             raise NotImplementedError
@@ -904,18 +902,14 @@ class ParameterType(BaseModel):
 
     def __repr__(self) -> str:
         return repr(
-            f"Name: {self.name}, Data Type: {self.data_type}, ID: {self.id}, Unit Type:{self.unit_type if self.unit_type else None}"
+            f"Name: {self.name}, Data Type: {self.data_type}, ID: {self.id}, Unit Type:{self.unit_type or None}"
         )
 
     def __eq__(self, other):
         if isinstance(other, ParameterType):
-            if other.id == self.id:
-                return True
-            else:
-                return False
-        else:
-            print(other)
-            raise NotImplementedError
+            return other.id == self.id
+        print(other)
+        raise NotImplementedError
 
 
 class Source(BaseModel):
@@ -948,19 +942,14 @@ class Source(BaseModel):
 
     def __eq__(self, other):
         if isinstance(other, Source):
-            if other.id == self.id:
-                return True
-            else:
-                return False
+            return other.id == self.id
         elif isinstance(other, NewSource):
-            if (
+            return (
                 other.title == self.title
                 and other.reference == self.reference
                 and other.source_type.id == self.source_type_id
-            ):
-                return True
-            else:
-                return False
+            )
+
         else:
             raise NotImplementedError
 
@@ -971,12 +960,10 @@ class Value(BaseModel):
     unit: Optional[Unit]
 
     def __str__(self) -> str:
-        return str(f"Value: {self.value}, Unit: {self.unit if self.unit else None}")
+        return str(f"Value: {self.value}, Unit: {self.unit or None}")
 
     def __repr__(self) -> str:
-        return repr(
-            f"Value: {self.value}, Unit: {self.unit if self.unit else None}, ID: {self.id}"
-        )
+        return repr(f"Value: {self.value}, Unit: {self.unit or None}, ID: {self.id}")
 
 
 class Staff(BaseModel):
@@ -1019,19 +1006,14 @@ class Revision(BaseModel):
 
     def __eq__(self, other):
         if isinstance(other, Revision):
-            if other.id == self.id:
-                return True
-            else:
-                return False
+            return other.id == self.id
         elif isinstance(other, NewRevision):
-            if (
+            return (
                 str(other.value) == str(self.values[0].value)
                 and other.unit == self.values[0].unit
                 and other.source == self.source
-            ):
-                return True
-            else:
-                return False
+            )
+
         else:
             raise NotImplementedError
 
@@ -1058,20 +1040,13 @@ class Parameter(BaseModel):
 
     def __eq__(self, other):
         if isinstance(other, Parameter):
-            if other.id == self.id:
-                return True
-            else:
-                return False
+            return other.id == self.id
         elif isinstance(other, NewParameter):
-            if (
+            return (
                 other.parameter_type == self.parameter_type
                 and other.revision == self.revision
-            ):
-                return True
-            else:
-                return False
-        # elif isinstance(other, dict):
-        #     all(hasattr(attr) for attr in [""])
+            )
+
         else:
             print(other)
             raise NotImplementedError
@@ -1203,25 +1178,19 @@ class NewSource(BaseModel):
     def __eq__(self, other):
         if isinstance(other, NewSource):
 
-            if (
+            return (
                 other.title == self.title
                 and other.reference == self.reference
                 and other.source_type == self.source_type
-            ):
+            )
 
-                return True
-            else:
-                return False
         elif isinstance(other, Source):
-            if (
+            return (
                 other.title == self.title
                 and other.reference == self.reference
                 and other.source_type_id == self.source_type.id
-            ):
+            )
 
-                return True
-            else:
-                return False
         else:
             raise NotImplementedError
 
@@ -1242,23 +1211,18 @@ class NewRevision(BaseModel):
 
     def __eq__(self, other):
         if isinstance(other, NewRevision):
-            if (
+            return (
                 other.value == self.value
                 and other.unit == self.unit
                 and other.source == self.source
-            ):
-                return True
-            else:
-                return False
+            )
+
         elif isinstance(other, Revision):
-            if (
+            return (
                 str(other.values[0].value) == str(self.value)
                 and other.values[0].unit == self.unit
                 and other.source == self.source
-            ):
-                return True
-            else:
-                return False
+            )
 
         elif other == None:
             return False
@@ -1281,17 +1245,14 @@ class NewAsset(BaseModel):
         return repr(f"Name: {self.name}, Type: {self.asset_type.name}, ID: {self.id}")
 
     def __eq__(self, other):
-        if isinstance(other, Asset) or isinstance(other, NewAsset):
+        if isinstance(other, (Asset, NewAsset)):
 
-            if (
+            return (
                 other.parent == self.parent
                 and other.asset_type == self.asset_type
                 and other.name == self.name
-            ):
+            )
 
-                return True
-            else:
-                return False
         elif other == None:
             return False
         else:
@@ -1315,13 +1276,11 @@ class NewParameter(BaseModel):
         )
 
     def __eq__(self, other):
-        if isinstance(other, Parameter) or isinstance(other, NewParameter):
-            if (
+        if isinstance(other, (Parameter, NewParameter)):
+            return (
                 other.parameter_type == self.parameter_type
                 and other.revision == self.revision
-            ):
-                return True
-            else:
-                return False
+            )
+
         else:
             raise NotImplementedError
