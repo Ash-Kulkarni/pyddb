@@ -1,5 +1,9 @@
 # Digital Design Brief - Jupyter Notebooks
 
+## Why Jupyter Notebooks?
+
+You can find our written PDF guide for what Jupyter Notebooks are and why we would use them [here.](https://arup.sharepoint.com/:b:/s/DigitalDesignBriefApplication/EUJqsHNKmrFIvWHDhFznrKgBva9M0eadk7jr0TPmJEGFWA?e=AhvgIC)
+
 ## Virtual Environment Setup
 
 To ensure you're using the virtual environment, you'll need to create a virtual environment, activate it, and the create a kernel using the virtual environment. You can then launch notebooks from within the environment.
