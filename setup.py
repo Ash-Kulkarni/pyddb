@@ -15,7 +15,7 @@ setup(
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),
-    install_requires=["pydantic", "aiohttp", "pandas", "ipykernel"],
+    install_requires=["pydantic", "aiohttp", "asyncio", "pandas", "ipykernel"],
     dependency_links=["https://github.com/arup-group/ddbpy_auth/tarball/master"],
     keywords=["python", "ddb", "digital", "design", "brief", "client", "api"],
     classifiers=[
