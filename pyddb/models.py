@@ -223,6 +223,7 @@ class DDB(BaseModel):
             if asset.parent:
                 asset_body["parent_id"] = str(asset.parent.id)
             body["assets"].append(asset_body)
+
         async with aiohttp.ClientSession() as session:
             response = await session.post(
                 f"{self.url}assets",
@@ -336,6 +337,7 @@ class DDB(BaseModel):
         existing_assets = await project.get_assets()
         new_assets = []
         returned_assets = []
+
         for asset in sorted_new_assets:
             if isinstance(asset.parent, Asset) or asset.parent is None:
                 for existing_asset in existing_assets:
@@ -348,15 +350,16 @@ class DDB(BaseModel):
                         for child in sorted_new_assets:
                             if child.parent and child.parent.id == asset.id:
                                 child.parent = this_existing_asset
-                    else:
-                        new_assets.append(
-                            NewAsset(
-                                id=str(asset.id),
-                                asset_type=asset.asset_type,
-                                name=asset.name,
-                                parent=asset.parent,
-                            )
-                        )
+
+            new_assets.append(
+                NewAsset(
+                    id=str(asset.id),
+                    asset_type=asset.asset_type,
+                    name=asset.name,
+                    parent=asset.parent,
+                )
+            )
+
         if new_assets != []:
             returned_assets += await self.handle_post_assets(
                 project=project, assets=new_assets
@@ -367,24 +370,17 @@ class DDB(BaseModel):
         self, project: "Project", parameters: List["NewParameter"]
     ):
 
+        # Wow this entire function is just awful
         project_parameters = await project.get_parameters(
             page_limit=99999,
-            # parameter_type_id=[p.parameter_type.id for p in parameters],
+            parameter_type_id=[p.parameter_type.id for p in parameters],
         )
-
         existing_parameters = [
             (p.parameter_type.id, p.parents[0].id if p.parents else None)
             for p in project_parameters
         ]
         existing_revisions = [
-            (
-                p.parameter_type.id,
-                p.parents[0].id if p.parents else None,
-                p.revision.values[0].value if p.revision else None,
-                p.revision.values[0].unit if p.revision else None,
-                p.revision.source.title if p.revision else None,
-                p.revision.source.reference if p.revision else None,
-            )
+            (p.parameter_type.id, p.parents[0].id if p.parents else None, p.revision)
             for p in project_parameters
         ]
         new_parameters = []
@@ -398,10 +394,7 @@ class DDB(BaseModel):
                 if (
                     parameter.parameter_type.id,
                     parameter.parent.id if parameter.parent else None,
-                    parameter.revision.value if parameter.revision else None,
-                    parameter.revision.unit if parameter.revision else None,
-                    parameter.revision.source.title if parameter.revision else None,
-                    parameter.revision.source.reference if parameter.revision else None,
+                    parameter.revision or None,
                 ) in existing_revisions:
                     continue
                 if parameter.parent:
@@ -447,15 +440,8 @@ class DDB(BaseModel):
         new_parameters = []
 
         for parameter in parameters:
-            if not parameter.revision:
-                new_parameters.append(
-                    {
-                        "parameter_type_id": parameter.parameter_type.id,
-                        "project_id": project.project_id,
-                    }
-                )
-            else:
-                parameter_body = {
+            parameter_body = (
+                {
                     "parameter_type_id": parameter.parameter_type.id,
                     "project_id": project.project_id,
                     "revision": {
@@ -472,6 +458,13 @@ class DDB(BaseModel):
                         ],
                     },
                 }
+                if parameter.revision
+                else {
+                    "parameter_type_id": parameter.parameter_type.id,
+                    "project_id": project.project_id,
+                }
+            )
+
             if parameter.parent:
                 parameter_body["parent_ids"] = str(parameter.parent.id)
             new_parameters.append(parameter_body)
@@ -908,8 +901,8 @@ class ParameterType(BaseModel):
     def __eq__(self, other):
         if isinstance(other, ParameterType):
             return other.id == self.id
-        print(other)
-        raise NotImplementedError
+        else:
+            raise NotImplementedError
 
 
 class Source(BaseModel):
@@ -936,9 +929,7 @@ class Source(BaseModel):
         return str(f"Title: {self.title}, Reference: {self.reference}")
 
     def __repr__(self) -> str:
-        return repr(
-            f"Title: {self.title}, Reference: {self.reference}, Source Type ID: {self.source_type_id}, ID: {self.id}"
-        )
+        return repr(f"Title: {self.title}, Reference: {self.reference}, ID: {self.id}")
 
     def __eq__(self, other):
         if isinstance(other, Source):
@@ -972,7 +963,7 @@ class Staff(BaseModel):
     email: str
     company_centre_arup_unit: str
     location_name: str
-    grade_level: int
+    grade_level: Optional[int]
     my_people_page_url: str
 
     def __str__(self) -> str:
@@ -1014,6 +1005,8 @@ class Revision(BaseModel):
                 and other.source == self.source
             )
 
+        elif other is None:
+            return False
         else:
             raise NotImplementedError
 
@@ -1048,7 +1041,6 @@ class Parameter(BaseModel):
             )
 
         else:
-            print(other)
             raise NotImplementedError
 
 
@@ -1059,17 +1051,18 @@ class ItemType(BaseModel):
     deleted_at: Optional[str]
     parameter_type: ParameterType
     asset_type: Optional[AssetType]
+    asset_sub_type: Optional[AssetSubType]
     created_by: Staff
     updated_by: Staff
 
     def __str__(self) -> str:
         return str(
-            f"Parameter Type: {self.parameter_type.name}, Asset Type: {self.asset_type.name}"
+            f"Parameter Type: {self.parameter_type.name}, Asset Type: {self.asset_type}"
         )
 
     def __repr__(self) -> str:
         return repr(
-            f"Parameter Type: {self.parameter_type.name}, Asset Type: {self.asset_type.name}, ID: {self.id}"
+            f"Parameter Type: {self.parameter_type.name}, Asset Type: {self.asset_type}, ID: {self.id}"
         )
 
 
@@ -1176,19 +1169,12 @@ class NewSource(BaseModel):
         )
 
     def __eq__(self, other):
-        if isinstance(other, NewSource):
+        if isinstance(other, (NewSource, Source)):
 
             return (
                 other.title == self.title
                 and other.reference == self.reference
                 and other.source_type == self.source_type
-            )
-
-        elif isinstance(other, Source):
-            return (
-                other.title == self.title
-                and other.reference == self.reference
-                and other.source_type_id == self.source_type.id
             )
 
         else:

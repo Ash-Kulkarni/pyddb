@@ -1,6 +1,6 @@
 import pickle
 from typing import List
-from pyddb import ParameterType, AssetType, SourceType, Unit, Tag
+from pyddb import ParameterType, AssetType, SourceType, Unit, Tag, ItemType
 
 
 def read_data(filename):
@@ -108,4 +108,14 @@ def get_tag_by_name(name: str) -> Tag:
 
 def get_tag_by_id(id: str) -> Tag:
     data = read_data("tags")
+    return next((x for x in data if x.id == id), None)
+
+
+def get_item_types_by_id(ids: List[str]) -> List[ItemType]:
+    data = read_data("item_types")
+    return [next((x for x in data if x.id == id), None) for id in ids]
+
+
+def get_item_type_by_id(id: str) -> ItemType:
+    data = read_data("item_types")
     return next((x for x in data if x.id == id), None)

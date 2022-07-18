@@ -15,6 +15,7 @@ async def regenerate_all_types():
         units,
         tags,
         tag_types,
+        item_types,
     ) = await asyncio.gather(
         ddb.get_source_types(),
         ddb.get_parameter_types(),
@@ -24,6 +25,7 @@ async def regenerate_all_types():
         ddb.get_units(),
         ddb.get_tags(),
         ddb.get_tag_types(),
+        ddb.get_item_types(page_limit=99999),
     )
 
     # await write_data("source_types", data={1: 2})
@@ -37,6 +39,7 @@ async def regenerate_all_types():
         write_data("units", units),
         write_data("tags", tags),
         write_data("tag_types", tag_types),
+        write_data("item_types", item_types),
     )
 
 
