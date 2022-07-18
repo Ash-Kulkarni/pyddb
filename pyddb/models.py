@@ -926,7 +926,9 @@ class Source(BaseModel):
     source_type_id: Optional[str] = None
 
     def __str__(self) -> str:
-        return str(f"Title: {self.title}, Reference: {self.reference}")
+        return str(
+            f"Title: {self.title}, Reference: {self.reference}, Source Type: {self.source_type.name}"
+        )
 
     def __repr__(self) -> str:
         return repr(f"Title: {self.title}, Reference: {self.reference}, ID: {self.id}")
